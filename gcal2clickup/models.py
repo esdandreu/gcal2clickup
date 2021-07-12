@@ -7,8 +7,10 @@ from django.dispatch import receiver
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     # TODO Validate always starts with pk
-    clickup_pk = models.CharField(blank=True)
-    google_auth_token = models.CharField(blank=True, editable=False)
+    clickup_pk = models.CharField(blank=True, max_length=255)
+    google_auth_token = models.CharField(
+        blank=True, max_length=255, editable=False
+        )
 
 
 @receiver(post_save, sender=User)

@@ -15,6 +15,7 @@ import django_heroku
 import dj_database_url
 import dotenv
 import os
+import subprocess
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -23,7 +24,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 dotenv_file = os.path.join(BASE_DIR, ".env")
 if os.path.isfile(dotenv_file):
     dotenv.load_dotenv(dotenv_file)
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-]
+    ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -55,7 +55,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
+    ]
 
 ROOT_URLCONF = 'gcal2clickup.urls'
 
@@ -70,10 +70,10 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-            ],
+                ],
+            },
         },
-    },
-]
+    ]
 
 WSGI_APPLICATION = 'gcal2clickup.wsgi.application'
 
@@ -82,18 +82,22 @@ WSGI_APPLICATION = 'gcal2clickup.wsgi.application'
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
+        'NAME':
+            'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        },
     {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
+        'NAME':
+            'django.contrib.auth.password_validation.MinimumLengthValidator',
+        },
     {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
+        'NAME':
+            'django.contrib.auth.password_validation.CommonPasswordValidator',
+        },
     {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-]
+        'NAME':
+            'django.contrib.auth.password_validation.NumericPasswordValidator',
+        },
+    ]
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.2/topics/i18n/
@@ -123,40 +127,48 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': ('%(asctime)s [%(process)d] [%(levelname)s] ' +
-                       'pathname=%(pathname)s lineno=%(lineno)s ' +
-                       'funcname=%(funcName)s %(message)s'),
+            'format': (
+                '%(asctime)s [%(process)d] [%(levelname)s] ' +
+                'pathname=%(pathname)s lineno=%(lineno)s ' +
+                'funcname=%(funcName)s %(message)s'
+                ),
             'datefmt': '%Y-%m-%d %H:%M:%S'
-        },
+            },
         'simple': {
             'format': '%(levelname)s %(message)s'
-        }
-    },
+            }
+        },
     'handlers': {
         'console': {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
             'formatter': 'simple'
+            },
         },
-    },
     'loggers': {
         'django': {
             'handlers': ['console'],
             'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            },
         },
-    },
-}
+    }
 
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
+# Dinamically retrieve the associated app database url
+# DEFAULT_DATABASE_URL = subprocess.check_output([
+#     'bash', '-c', 'heroky config:get DATABASE_URL -a gcal2clickup'
+#     ]).decode('utf-8')
+
+DATABASE_URL = os.getenv('DATABASE_URL', None)
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    'default':
+        dj_database_url.config(
+            default=DATABASE_URL, conn_max_age=600, ssl_require=True
+            )
     }
-}
-DATABASES['default'] = dj_database_url.config(conn_max_age=600, ssl_require=True)
 
 # Activate Django-Heroku.
 django_heroku.settings(locals())

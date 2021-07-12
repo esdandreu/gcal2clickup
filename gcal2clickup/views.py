@@ -1,4 +1,6 @@
-from django.shortcuts import render
+from django.http import HttpResponse
+from .settings import BASE_DIR
 
 def google_verification(request):
-	return render(request, 'staticfiles/google_verification.html', {})
+	f = open(BASE_DIR / 'google_verification.html', 'r')
+	return HttpResponse(f.read())

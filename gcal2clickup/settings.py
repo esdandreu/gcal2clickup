@@ -156,11 +156,6 @@ LOGGING = {
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
-# Dinamically retrieve the associated app database url
-# DEFAULT_DATABASE_URL = subprocess.check_output([
-#     'bash', '-c', 'heroky config:get DATABASE_URL -a gcal2clickup'
-#     ]).decode('utf-8')
-
 DATABASE_URL = os.getenv('DATABASE_URL', None)
 
 DATABASES = {

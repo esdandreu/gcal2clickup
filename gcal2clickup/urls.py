@@ -22,4 +22,5 @@ urlpatterns = [
     path('', lambda request: redirect('admin/')), # Redirect root to admin
     path('admin/', admin.site.urls),
     path('google_verification/', views.google_verification),
+    path('google8818f4d019efa346.html', views.google_verification),
 ]

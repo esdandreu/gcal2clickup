@@ -1,1 +1,1 @@
-web: gunicorn gcal2clickup.wsgi
+web: gunicorn app.wsgi

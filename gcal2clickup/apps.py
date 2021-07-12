@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class IntegrationConfig(AppConfig):
+class Gcal2ClickupConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'integration'
+    name = 'gcal2clickup'

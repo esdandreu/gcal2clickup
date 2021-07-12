@@ -15,9 +15,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.shortcuts import redirect
-from django.urls import path
+from django.urls import path, include
 from . import views
 
 urlpatterns = [
-    path('gcal/', views.google_calendar_endpoint)
+    path('', lambda request: redirect('admin/')), # Redirect root to admin
+    path('admin/', admin.site.urls),
+    path('google8818f4d019efa346.html', views.google_verification),
+    path('api/', include('gcal2clickup.urls'))
 ]

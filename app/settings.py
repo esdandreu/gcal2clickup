@@ -154,23 +154,14 @@ LOGGING = {
 # Database
 # https://docs.djangoproject.com/en/3.2/ref/settings/#databases
 
-is_test = 'test' in sys.argv or 'test_coverage' in sys.argv
-if is_test:
-    DATABASE_URL = os.getenv('TEST_DATABASE_URL', None)
-else:
-    DATABASE_URL = os.getenv('DATABASE_URL', None)
+DATABASE_URL = os.getenv('DATABASE_URL', None)
 
 DATABASES = {
     'default':
         dj_database_url.config(
-            default=DATABASE_URL, conn_max_age=600,
-            # default=DATABASE_URL, conn_max_age=600, ssl_require=True
+            default=DATABASE_URL, conn_max_age=600, ssl_require=True
             )
     }
-
-if is_test:
-    DATABASES['default']['TEST'] = {'NAME': DATABASES['default']['NAME']}
-
 
 # Activate Django-Heroku.
 django_heroku.settings(locals())

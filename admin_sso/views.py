@@ -48,9 +48,17 @@ if settings.GOOGLE_OAUTH_REVOKE_URI:
     client_config['web']["revoke_uri"] = settings.GOOGLE_OAUTH_REVOKE_URI
 
 SCOPES = [
+    'https://www.googleapis.com/auth/userinfo.email',
     'https://www.googleapis.com/auth/calendar.readonly',
     'https://www.googleapis.com/auth/calendar.events',
+    'openid',
     ]
+
+# Utility function
+def get_redirect_uri(request) -> str:
+    return request.build_absolute_uri(
+        reverse("admin:admin_sso_assignment_end")
+        )
 
 
 def start(request):
@@ -65,9 +73,7 @@ def start(request):
     # OAuth 2.0 client, which you configured in the API Console. If this
     # value doesn't match an authorized URI, you will get a
     # 'redirect_uri_mismatch' error.
-    flow.redirect_uri = request.build_absolute_uri(
-        reverse("admin:admin_sso_assignment_end")
-        )
+    flow.redirect_uri = get_redirect_uri(request)
 
     # Generate URL for request to Google's OAuth 2.0 server. Use kwargs to
     # set optional request parameters.
@@ -85,11 +91,9 @@ def start(request):
 
 def end(request):
     flow = Flow.from_client_config(client_config, SCOPES)
-    flow.redirect_uri = request.build_absolute_uri(
-        reverse("admin:admin_sso_assignment_end")
-        )
+    flow.redirect_uri = get_redirect_uri(request)
 
-    authorization_response = request.get_full_path()
+    authorization_response = request.build_absolute_uri()
 
     # Handle localhost in DEBUG mode
     if settings.DEBUG:
@@ -99,16 +103,6 @@ def end(request):
         print(authorization_response)
 
     flow.fetch_token(authorization_response=authorization_response)
-
-    # if flow_override is None:
-    #     flow = OAuth2WebServerFlow(
-    #         redirect_uri=request.build_absolute_uri(
-    #             reverse("admin:admin_sso_assignment_end")
-    #             ),
-    #         **flow_kwargs
-    #         )
-    # else:
-    #     flow = flow_override
 
     code = request.GET.get("code", None)
     if not code:

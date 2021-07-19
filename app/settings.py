@@ -41,8 +41,8 @@ ALLOWED_HOSTS = []
 INSTALLED_APPS = [
     'django.contrib.admin', 'django.contrib.auth',
     'django.contrib.contenttypes', 'django.contrib.sessions',
-    'django.contrib.messages', 'django.contrib.staticfiles', 'admin_sso',
-    'gcal2clickup.apps.Gcal2ClickupConfig'
+    'django.contrib.messages', 'django.contrib.staticfiles',
+    'admin_sso.apps.AdminSSOConfig', 'gcal2clickup.apps.Gcal2ClickupConfig'
     ]
 
 MIDDLEWARE = [
@@ -168,8 +168,12 @@ DATABASES = {
             )
     }
 
+# Google OAuth login into admin
 DJANGO_ADMIN_SSO_OAUTH_CLIENT_ID = os.getenv('G_CLIENT_ID')
 DJANGO_ADMIN_SSO_OAUTH_CLIENT_SECRET = os.getenv('G_CLIENT_SECRET')
+DJANGO_ADMIN_SSO_AUTH_URI = "https://accounts.google.com/o/oauth2/auth"
+DJANGO_ADMIN_SSO_REVOKE_URI = "https://accounts.google.com/o/oauth2/revoke"
+DJANGO_ADMIN_SSO_TOKEN_URI = "https://accounts.google.com/o/oauth2/token"
 
 # Activate Django-Heroku.
 django_heroku.settings(locals())

@@ -41,7 +41,7 @@ ALLOWED_HOSTS = []
 INSTALLED_APPS = [
     'django.contrib.admin', 'django.contrib.auth',
     'django.contrib.contenttypes', 'django.contrib.sessions',
-    'django.contrib.messages', 'django.contrib.staticfiles',
+    'django.contrib.messages', 'django.contrib.staticfiles', 'admin_sso',
     'gcal2clickup.apps.Gcal2ClickupConfig'
     ]
 
@@ -96,6 +96,11 @@ AUTH_PASSWORD_VALIDATORS = [
             'django.contrib.auth.password_validation.NumericPasswordValidator',
         },
     ]
+
+AUTHENTICATION_BACKENDS = (
+    'admin_sso.auth.DjangoSSOAuthBackend',
+    'django.contrib.auth.backends.ModelBackend',
+    )
 
 # Internationalization
 # https://docs.djangoproject.com/en/3.2/topics/i18n/
@@ -162,6 +167,9 @@ DATABASES = {
             default=DATABASE_URL, conn_max_age=600, ssl_require=True
             )
     }
+
+DJANGO_ADMIN_SSO_OAUTH_CLIENT_ID = os.getenv('G_CLIENT_ID')
+DJANGO_ADMIN_SSO_OAUTH_CLIENT_SECRET = os.getenv('G_CLIENT_SECRET')
 
 # Activate Django-Heroku.
 django_heroku.settings(locals())

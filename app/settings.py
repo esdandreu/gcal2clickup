@@ -169,11 +169,11 @@ DATABASES = {
     }
 
 # Google OAuth login into admin
-DJANGO_ADMIN_SSO_OAUTH_CLIENT_ID = os.getenv('G_CLIENT_ID')
-DJANGO_ADMIN_SSO_OAUTH_CLIENT_SECRET = os.getenv('G_CLIENT_SECRET')
-DJANGO_ADMIN_SSO_AUTH_URI = "https://accounts.google.com/o/oauth2/auth"
-DJANGO_ADMIN_SSO_REVOKE_URI = "https://accounts.google.com/o/oauth2/revoke"
-DJANGO_ADMIN_SSO_TOKEN_URI = "https://accounts.google.com/o/oauth2/token"
+GOOGLE_OAUTH_CLIENT_ID = os.getenv('GOOGLE_OAUTH_CLIENT_ID')
+GOOGLE_OAUTH_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH_CLIENT_SECRET')
+GOOGLE_OAUTH_AUTH_URI = "https://accounts.google.com/o/oauth2/auth"
+GOOGLE_OAUTH_REVOKE_URI = "https://accounts.google.com/o/oauth2/revoke"
+GOOGLE_OAUTH_TOKEN_URI = "https://accounts.google.com/o/oauth2/token"
 
 # Activate Django-Heroku.
 django_heroku.settings(locals())

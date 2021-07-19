@@ -1,6 +1,6 @@
 from django.http import HttpResponse
 from .settings import BASE_DIR
-from gcal2clickup.gcal import Gcal
+from gcal2clickup.gcal import GoogleCalendar
 
 
 def google_verification(request):
@@ -10,7 +10,7 @@ def google_verification(request):
 
 def oauth_redirect_uri(request):
     print(request.build_absolute_uri())
-    flow = Gcal.credentials_flow()
+    flow = GoogleCalendar.credentials_flow()
     flow.fetch_token(authorization_response=request.build_absolute_uri())
     print(flow.credentials)
     return HttpResponse('Hello wolrd')

@@ -22,5 +22,5 @@ class AssignmentAdmin(admin.ModelAdmin):
 admin.site.register(Assignment, AssignmentAdmin)
 
 
-if settings.DJANGO_ADMIN_SSO_ADD_LOGIN_BUTTON:
+if settings.GOOGLE_OAUTH_ADD_LOGIN_BUTTON:
     admin.site.login_template = "admin_sso/login.html"

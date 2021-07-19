@@ -22,8 +22,8 @@ Being `app name` in this case `gcal2clickup`.
 https://developers.google.com/identity/protocols/oauth2/web-server#python
 
 ```
-export G_CLIENT_ID="my-client-id.apps.googleusercontent.com"
-export G_CLIENT_SECRET="my-secred-id"
+export GOOGLE_OAUTH_CLIENT_ID="my-client-id.apps.googleusercontent.com"
+export GOOGLE_OAUTH_CLIENT_SECRET="my-secred-id"
 ```
 
 ### Register your domain in google search console

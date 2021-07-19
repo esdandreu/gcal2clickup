@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
-from gcal2clickup.gcal import Gcal
+from gcal2clickup.gcal import GoogleCalendar
 
 class Command(BaseCommand):
 
     def handle(self, *args, **options):
-        print(Gcal.get_credentials())
+        print(GoogleCalendar.get_credentials())

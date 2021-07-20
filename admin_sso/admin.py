@@ -2,12 +2,30 @@ from django.conf.urls import url
 from django.contrib import admin
 
 from admin_sso import settings
-from admin_sso.models import Assignment
+from admin_sso.models import Profile
+
+if settings.GOOGLE_OAUTH_ADD_LOGIN_BUTTON:
+    admin.site.login_template = "admin_sso/login.html"
 
 
-class AssignmentAdmin(admin.ModelAdmin):
-    list_display = ["__str__", "user", "weight"]
-    raw_id_fields = ["user"]
+@admin.register(Profile)
+class ProfileAdmin(admin.ModelAdmin):
+    # yapf: disable
+    fieldsets = [
+        [None, {
+            'fields': ('user', 'clickup_pk', ),
+            }],
+        ['Google Auth', {
+            'fields': ('google_auth_token', 'google_auth_refresh_token', ),
+            'classes': ('collapse', )
+            }]
+        ]
+    # yapf: enable
+    readonly_fields = [
+        'google_auth_token',
+        'google_auth_refresh_token',
+        ]
+    list_display = ["__str__"]
 
     def get_urls(self):
         from admin_sso.views import start, end
@@ -16,11 +34,11 @@ class AssignmentAdmin(admin.ModelAdmin):
         return [
             url(r"^start/$", start, name="%s_%s_start" % info),
             url(r"^end/$", end, name="%s_%s_end" % info),
-        ] + super(AssignmentAdmin, self).get_urls()
+            ] + super(ProfileAdmin, self).get_urls()
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
 
-admin.site.register(Assignment, AssignmentAdmin)
-
-
-if settings.GOOGLE_OAUTH_ADD_LOGIN_BUTTON:
-    admin.site.login_template = "admin_sso/login.html"
+        return Profile.objects.filter(user=request.user) or qs.none()

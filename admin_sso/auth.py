@@ -1,6 +1,9 @@
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, user_login_failed
+from django.contrib.auth.models import User, Permission
 
-from admin_sso.models import Assignment
+import jwt
+
+ADD_PERMISSIONS = ['Can change profile']
 
 
 class DjangoSSOAuthBackend(object):
@@ -11,12 +14,32 @@ class DjangoSSOAuthBackend(object):
         except cls.DoesNotExist:
             return None
 
-    def authenticate(self, request, **kwargs):
-        sso_email = kwargs.pop("sso_email", None)
+    def authenticate(self, request, google_auth_credentials={}, **kwargs):
 
-        # TODO Get or create user
-        assignment = Assignment.objects.for_email(sso_email)
-        if assignment is None:
-            return None
+        _id = google_auth_credentials.get('_id_token', None)
+        if _id:
+            _id = jwt.decode(
+                google_auth_credentials['_id_token'],
+                options={"verify_signature": False}
+                )
+            if _id['email_verified']:
+                email = _id['email']
+                user, created = User.objects.get_or_create(username=email)
+                print(user)
+                if created:
+                    user.email = email
+                    user.set_unusable_password()
+                    user.is_staff = True
+                    user.user_permissions.set(
+                        Permission.objects.filter(name__in=ADD_PERMISSIONS)
+                        )
 
-        return assignment.user
+                # Save credentials
+                user.profile.google_auth_token = \
+                    google_auth_credentials.get('token', None)
+                user.profile.google_auth_refresh_token = \
+                    google_auth_credentials.get('_refresh_token', None)
+                user.save()
+                return user
+
+        return None

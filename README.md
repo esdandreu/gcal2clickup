@@ -9,6 +9,10 @@ to your heroku app as config vars.
 
 https://devcenter.heroku.com/articles/config-vars
 
+```
+heroku config:set GOOGLE_OAUTH_CLIENT_ID="my-client-id.apps.googleusercontent.com" -a <app name>
+heroku config:set GOOGLE_OAUTH_CLIENT_SECRET="my-secred-id" -a <app name>
+```
 ## Use remote database
 Save the `DATABASE_URL` environmental variable with the output of the following
 command

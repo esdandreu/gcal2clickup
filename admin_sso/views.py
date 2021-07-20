@@ -1,29 +1,10 @@
-from pathlib import PureWindowsPath
-from django.contrib.auth import authenticate, login
+from django.contrib.auth import authenticate, login, user_login_failed
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 
-from oauth2client.client import OAuth2WebServerFlow, FlowExchangeError
 from google_auth_oauthlib.flow import Flow
 
 from app import settings
-
-# TODO delete
-flow_kwargs = {
-    "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,
-    "client_secret": settings.GOOGLE_OAUTH_CLIENT_SECRET,
-    "scope": "email",
-    }
-if settings.GOOGLE_OAUTH_AUTH_URI:
-    flow_kwargs["auth_uri"] = settings.GOOGLE_OAUTH_AUTH_URI
-
-if settings.GOOGLE_OAUTH_TOKEN_URI:
-    flow_kwargs["token_uri"] = settings.GOOGLE_OAUTH_TOKEN_URI
-
-if settings.GOOGLE_OAUTH_REVOKE_URI:
-    flow_kwargs["revoke_uri"] = settings.GOOGLE_OAUTH_REVOKE_URI
-
-flow_override = None
 
 error_msg = '''Google project credentials should not be empty, see 
     https://github.com/esdandreu/gcal2clickup/tree/main#get-google-credentials'''
@@ -54,11 +35,10 @@ SCOPES = [
     'openid',
     ]
 
+
 # Utility function
 def get_redirect_uri(request) -> str:
-    return request.build_absolute_uri(
-        reverse("admin:admin_sso_assignment_end")
-        )
+    return request.build_absolute_uri(reverse("admin:admin_sso_profile_end"))
 
 
 def start(request):
@@ -109,13 +89,15 @@ def end(request):
         return HttpResponseRedirect(reverse("admin:index"))
     try:
         credentials = flow.credentials
-        print(credentials)
-    except FlowExchangeError:
+    except Exception:
+        # TODO add an error message, this doesn't work
+        user_login_failed.send(sender=__name__, request=request)
         return HttpResponseRedirect(reverse("admin:index"))
 
-    if credentials.id_token["email_verified"]:
-        email = credentials.id_token["email"]
-        user = authenticate(request, sso_email=email)
+    if credentials.id_token is not None:
+        user = authenticate(
+            request, google_auth_credentials=credentials.__dict__
+            )
         if user and user.is_active:
             login(request, user)
             return HttpResponseRedirect(reverse("admin:index"))

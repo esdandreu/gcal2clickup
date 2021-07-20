@@ -22,6 +22,5 @@ urlpatterns = [
     path('', lambda request: redirect('admin/')), # Redirect root to admin
     path('admin/', admin.site.urls),
     path('google8818f4d019efa346.html', views.google_verification),
-    path('oauth', views.oauth_redirect_uri),
     path('api/', include('gcal2clickup.urls'))
 ]

@@ -23,7 +23,19 @@ def google_calendar_endpoint(request):
 def clickup_endpoint(request):
     print('CLICKUP!')
     print(request.body)
-    print(request.POST)
-    print(request.META)
-    print(request.headers)
     return HttpResponse('Hello wolrd')
+
+{
+    "endpoint": "https://gcal2clickup.herokuapp.com/api/clickup/",
+    "events": [
+        "taskCreated",
+        "taskUpdated",
+        "taskDeleted",
+        "taskPriorityUpdated",
+        "taskStatusUpdated",
+        "taskAssigneeUpdated",
+        "taskDueDateUpdated",
+        "taskTagUpdated",
+        "taskMoved",
+    ]
+}

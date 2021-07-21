@@ -21,7 +21,9 @@ class GoogleCalendar:
         items = []
         page_token = None
         while True:
-            calendar_list = self.service.calendarList().list(pageToken=page_token).execute()
+            calendar_list = self.service.calendarList().list(
+                pageToken=page_token
+                ).execute()
             items.extend(calendar_list['items'])
             page_token = calendar_list.get('nextPageToken')
             if not page_token:
@@ -29,10 +31,14 @@ class GoogleCalendar:
         return items
 
     def watch(self, calendar_id, id, address, ttl=604800):
-        return self.service.watch(
+        return self.service.events().watch(
             calendarId=calendar_id,
-            id=id,
-            address=address,
-            type='webhook',
-            params={'ttl': ttl}
+            body={
+                'id': id,
+                'address': address,
+                'type': 'webhook',
+                'params': {
+                    'ttl': ttl
+                    }
+                }
             ).execute()

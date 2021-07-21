@@ -19,5 +19,6 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('gcal/', views.google_calendar_endpoint)
+    path('gcal/', views.google_calendar_endpoint),
+    path('clickup/', views.clickup_endpoint),
 ]

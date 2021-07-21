@@ -30,9 +30,9 @@ class GoogleCalendar:
 
     def watch(self, calendar_id, id, address, ttl=604800):
         return self.service.watch(
-            calendar_id=calendar_id,
+            calendarId=calendar_id,
             id=id,
             address=address,
             type='webhook',
             params={'ttl': ttl}
-            )
+            ).execute()

@@ -38,18 +38,5 @@ Google](https://developers.google.com/calendar/api/guides/push#registering-your-
 in the first step, download and save the `html` file as
 `google_verification.html` in the root of this project.
 
-# Testing WIP
-you can create a new database on heroku and use it for testing
-purposes
-https://medium.com/analytics-vidhya/provisioning-a-test-postgresql-database-on-heroku-for-your-django-app-febb2b5d3b29
-Add the test database uri to the environmental variable `TEST_DATABASE_URL`.
-
-Run tests with 
-```
-python manage.py test --keepdb
-```
-Your tests will have to manage the clean-up of the database, not only the
-setup.
-
 # Thanks to
 https://github.com/matthiask/django-admin-sso

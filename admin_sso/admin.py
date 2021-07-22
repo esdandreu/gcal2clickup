@@ -12,12 +12,11 @@ if settings.GOOGLE_OAUTH_ADD_LOGIN_BUTTON:
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    print(readme_image_url("google_calendar_to_clickup.drawio.svg"))
     # yapf: disable
     fieldsets = [
         [None, {
             'fields': ('user', 'clickup_pk', ),
-            'description': f'<img src="{readme_image_url("google_calendar_to_clickup.drawio.svg")}" alt="My image">',
+            # 'description': f'<img src="{readme_image_url("google_calendar_to_clickup.drawio.svg")}" alt="My image">',
             }],
         ['Google Auth', {
             'fields': ('google_auth_token', 'google_auth_refresh_token', ),

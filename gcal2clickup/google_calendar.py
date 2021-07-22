@@ -15,9 +15,13 @@ class GoogleCalendar:
             client_secret=settings.GOOGLE_OAUTH_CLIENT_SECRET
             )
         self.service = build('calendar', 'v3', credentials=credentials)
+    
+    @property
+    def events(self):
+        return self.service.events()
 
     @property
-    def calendar_list(self):
+    def list_calendars(self):
         items = []
         page_token = None
         while True:
@@ -30,9 +34,9 @@ class GoogleCalendar:
                 break
         return items
 
-    def watch(self, calendar_id, id, address, ttl=604800):
-        return self.service.events().watch(
-            calendarId=calendar_id,
+    def add_events_watch(self, calendarId, id, address, ttl=604800):
+        return self.events.watch(
+            calendarId=calendarId,
             body={
                 'id': id,
                 'address': address,

@@ -5,13 +5,15 @@ from django.urls import reverse
 from google_auth_oauthlib.flow import Flow
 
 from app import settings
+from app.utils import readme
 
-error_msg = '''Google project credentials should not be empty, see 
-    https://github.com/esdandreu/gcal2clickup/tree/main#get-google-credentials'''
 assert (
     settings.GOOGLE_OAUTH_CLIENT_ID is not None
     and settings.GOOGLE_OAUTH_CLIENT_SECRET is not None
-    ), error_msg
+    ), (
+        "Google project credentials should not be empty, "
+        f"see {readme('get-google-credentials')}"
+        )
 client_config = {
     'web': {
         "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,

@@ -2,6 +2,8 @@
 Google Calendar and Click Up integration. Synchronize tasks from calendar
 events, adding meeting notes.
 
+Requires the Tags ClickApp
+
 ## Google Calendar to Clickup
 ![Google Calendar to Clickup diagram](README/google_calendar_to_clickup.drawio.svg)
 

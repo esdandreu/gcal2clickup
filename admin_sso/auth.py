@@ -4,15 +4,15 @@ from django.contrib.auth.models import User, Permission
 import jwt
 
 ADD_PERMISSIONS = [
-    'Can change Profile',
-    'Can add Matcher',
-    'Can change Matcher',
-    'Can delete Matcher',
-    'Can change SyncedEvent',
-    'Can see GoogleCalendarWebhook',
-    'Can see ClickupWebhook',
-    'Can delete GoogleCalendarWebhook',
-    'Can delete ClickupWebhook',
+    'Can change profile',
+    'Can add matcher',
+    'Can change matcher',
+    'Can delete matcher',
+    'Can change synced_event',
+    'Can view google_calendar_webhook',
+    'Can view clickup_webhook',
+    'Can delete google_calendar_webhook',
+    'Can delete clickup_webhook',
     ]
 
 

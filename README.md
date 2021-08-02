@@ -15,6 +15,11 @@ Requires the Tags ClickApp
 Build a `.env` file for local development and add the environmental variables
 to your heroku app as config vars.
 
+```
+DOMAIN="https://example.com"
+```
+
+## Using heroku
 https://devcenter.heroku.com/articles/config-vars
 
 ```
@@ -34,8 +39,8 @@ Being `app name` in this case `gcal2clickup`.
 https://developers.google.com/identity/protocols/oauth2/web-server#python
 
 ```
-export GOOGLE_OAUTH_CLIENT_ID="my-client-id.apps.googleusercontent.com"
-export GOOGLE_OAUTH_CLIENT_SECRET="my-secred-id"
+GOOGLE_OAUTH_CLIENT_ID="my-client-id.apps.googleusercontent.com"
+GOOGLE_OAUTH_CLIENT_SECRET="my-secred-id"
 ```
 
 ### Register your domain in google search console

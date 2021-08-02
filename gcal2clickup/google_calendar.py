@@ -16,11 +16,9 @@ class GoogleCalendar:
             )
         self.service = build('calendar', 'v3', credentials=credentials)
     
-    @property
-    def events(self):
-        return self.service.events()
+    def __getattr__(self, name: str):
+        return getattr(self.service, name)()
 
-    @property
     def list_calendars(self):
         items = []
         page_token = None
@@ -46,3 +44,6 @@ class GoogleCalendar:
                     }
                 }
             ).execute()
+    
+    def stop_watch(self, id, resourceId):
+        return self.channels.stop(id=id, resourceId=resourceId).execute()

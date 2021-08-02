@@ -16,6 +16,7 @@ import dj_database_url
 import dotenv
 import os
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -23,6 +24,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 dotenv_file = os.path.join(BASE_DIR, ".env")
 if os.path.isfile(dotenv_file):
     dotenv.load_dotenv(dotenv_file)
+
+# DOMAIN
+DOMAIN = os.getenv('DOMAIN')
+if not (DOMAIN.startswith('https://') or DOMAIN.startswith('http://')):
+    DOMAIN = 'https://' +  DOMAIN
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/

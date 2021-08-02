@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 from sort_order_field import SortOrderField
 
@@ -17,10 +18,12 @@ class Matcher(models.Model):
         )
     tag_name = models.CharField(
         max_length=64,
+        blank=True,
         help_text=("Clickup tag name that will be added to matched events")
         )
     name_regex = models.CharField(
         max_length=1024,
+        blank=True,
         help_text=(
             '''Regular expression that will be used with the event name
             in order to decide if a calendar event should be synced with a
@@ -29,6 +32,7 @@ class Matcher(models.Model):
         )
     description_regex = models.CharField(
         max_length=1024,
+        blank=True,
         help_text=(
             '''Regular expression that will be used with the event description
             in order to decide if a calendar event should be synced with a
@@ -40,6 +44,15 @@ class Matcher(models.Model):
     class Meta:
         ordering = ('order', 'user__username')
         unique_together = [['user', 'list_id']]
+
+    def clean(self):
+        """
+        Require at least one regex
+        """
+        if not (self.name_regex or self.description_regex):
+            raise ValidationError(
+                "A description or name regular expression is required"
+                )
 
 
 class GoogleCalendarWebhook(models.Model):
@@ -74,6 +87,7 @@ SYNC_CLICKUP_DESCRIPTION = False
 
 
 class SyncedEvent(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     task_id = models.CharField(max_length=64, primary_key=True)
     event_id = models.CharField(max_length=64)
     end_time = models.DateTimeField()

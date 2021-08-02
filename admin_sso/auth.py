@@ -3,7 +3,17 @@ from django.contrib.auth.models import User, Permission
 
 import jwt
 
-ADD_PERMISSIONS = ['Can change profile']
+ADD_PERMISSIONS = [
+    'Can change Profile',
+    'Can add Matcher',
+    'Can change Matcher',
+    'Can delete Matcher',
+    'Can change SyncedEvent',
+    'Can see GoogleCalendarWebhook',
+    'Can see ClickupWebhook',
+    'Can delete GoogleCalendarWebhook',
+    'Can delete ClickupWebhook',
+    ]
 
 
 class DjangoSSOAuthBackend(object):

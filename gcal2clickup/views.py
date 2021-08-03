@@ -2,9 +2,11 @@ from django.http import HttpResponse
 from django.http.response import HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 
-from gcal2clickup.models import GoogleCalendarWebhook
+from gcal2clickup.models import GoogleCalendarWebhook, SyncedEvent
 
 import logging
+
+from datetime import datetime
 
 
 @csrf_exempt
@@ -24,12 +26,8 @@ def google_calendar_endpoint(request):
                 f'{request.headers}'
                 )
             return HttpResponseForbidden()
-        calendarId = webhook.matcher.calendar_id
         print('GOOGLE CALENDAR')
-        print(calendarId)
-        # TODO check events
-        # TODO Create or update clickup task
-        # TODO Delete clickup task or ignore
+        webhook.check_events()
         return HttpResponse('Done')
     return HttpResponse('Hello wolrd')
 

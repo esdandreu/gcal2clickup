@@ -8,11 +8,9 @@ ADD_PERMISSIONS = [
     'Can add matcher',
     'Can change matcher',
     'Can delete matcher',
-    'Can change synced_event',
-    'Can view google_calendar_webhook',
-    'Can view clickup_webhook',
-    'Can delete google_calendar_webhook',
-    'Can delete clickup_webhook',
+    'Can change synced event',
+    'Can view google calendar webhook',
+    'Can view clickup webhook',
     ]
 
 

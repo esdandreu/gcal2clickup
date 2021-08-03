@@ -1,10 +1,8 @@
+from typing import Tuple
+
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from app import settings
-
-import datetime
-
-
 class GoogleCalendar:
     def __init__(self, token, refresh_token):
         credentials = Credentials(
@@ -31,6 +29,20 @@ class GoogleCalendar:
             if not page_token:
                 break
         return items
+
+    def list_events(self, calendarId, **kwargs):
+        nextPageToken = True
+        while nextPageToken:
+            if isinstance(nextPageToken, str):
+                kwargs['pageToken'] = nextPageToken
+            response = self.events.list(
+                calendarId=calendarId,
+                singleEvents=True,
+                **kwargs
+                ).execute()
+            nextPageToken = response.get('nextPageToken', None)
+            for event in response['items']:
+                yield event
 
     def add_events_watch(self, calendarId, id, address, ttl=604800):
         return self.events.watch(

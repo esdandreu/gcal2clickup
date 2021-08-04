@@ -26,6 +26,19 @@ class GoogleCalendarWebhook(models.Model):
         )
     resource_id = models.CharField(max_length=256, editable=False)
     expiration = models.DateTimeField()
+    checked_at = models.DateTimeField(
+        null=True,
+        editable=False,
+        help_text=(
+            '''Last time that the given calendar has been checked for
+            updated events'''
+            ),
+        )
+    
+    @property
+    def calendar(self) -> Tuple[str, str]: # (name, id)
+        # TODO query google calendar API for the name
+        return (self.calendar_id, self.calendar_id)
 
     @classmethod
     def create(
@@ -55,13 +68,10 @@ class GoogleCalendarWebhook(models.Model):
         # Check all the related matchers
         google_calendar = self.user.profile.google_calendar
         matchers = self.matcher_set.order_by('order')
-        check_since = matchers.earliest(
-            'google_calendar_checked_at'
-            ).google_calendar_checked_at
-        if not check_since:
+        if not self.checked_at:
             kwargs = {'timeMin': datetime.utcnow().isoformat("T") + "Z"}
         else:
-            kwargs = {'updateMin': check_since.isoformat("T") + "Z"}
+            kwargs = {'updateMin': self.checked_at.isoformat("T") + "Z"}
         print(kwargs)
 
         for event in google_calendar.list_events(
@@ -75,6 +85,7 @@ class GoogleCalendarWebhook(models.Model):
                 if match:
                     SyncedEvent.create(matcher, match, event=event)
         # TODO set matchers google_calendar_checked_at to now
+        matchers.update(google_calendar_webhook_checked_at=datetime.utcnow())
 
 
 @receiver(pre_delete, sender=GoogleCalendarWebhook)
@@ -123,9 +134,9 @@ class Matcher(models.Model):
         )
     # ! Not necessary in model, could be passed by the form and then retrieved
     # ! from the google_calendar_webhook
-    calendar_id = models.CharField(
-        max_length=64, help_text=("Google Calendar's calendar identifier")
-        )
+    # calendar_id = models.CharField(
+    #     max_length=64, help_text=("Google Calendar's calendar identifier")
+    #     )
     list_id = models.CharField(
         max_length=64, help_text=("Clickup list identifier")
         )
@@ -155,14 +166,6 @@ class Matcher(models.Model):
             ),
         )
     order = SortOrderField(_("Order"))
-    google_calendar_checked_at = models.DateTimeField(
-        blank=True,
-        null=True,
-        help_text=(
-            '''Last time that the given calendar has been checked for
-            updated events'''
-            )
-        )
     objects = MatcherManager()
 
     class Meta:
@@ -179,17 +182,19 @@ class Matcher(models.Model):
                 )
 
     def save(self, *args, **kwargs):
-        if not getattr(self, 'google_calendar_webhook', None):
-            # get_or_create with a custom create method
-            try:
-                self.google_calendar_webhook = GoogleCalendarWebhook.objects.get(
-                    calendar_id=self.calendar_id
-                    )
-            except GoogleCalendarWebhook.DoesNotExist:
-                self.google_calendar_webhook = GoogleCalendarWebhook.create(
-                    user=self.user, calendarId=self.calendar_id
-                    )
-            self.google_calendar_webhook.save()
+        # if not getattr(self, 'google_calendar_webhook', None):
+        #     # get_or_create with a custom create method
+        #     try:
+        #         self.google_calendar_webhook = GoogleCalendarWebhook.objects.get(
+        #             calendar_id=self.calendar_id
+        #             )
+        #     except GoogleCalendarWebhook.DoesNotExist:
+        #         self.google_calendar_webhook = GoogleCalendarWebhook.create(
+        #             user=self.user, calendarId=self.calendar_id
+        #             )
+        self.google_calendar_webhook.checked_at = None
+        self.google_calendar_webhook.save()
+        # Reset the checks when modified
         super(Matcher, self).save(*args, **kwargs)
 
     @property

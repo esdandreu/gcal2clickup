@@ -5,15 +5,7 @@ from django.urls import reverse
 from google_auth_oauthlib.flow import Flow
 
 from app import settings
-from app.utils import readme
 
-assert (
-    settings.GOOGLE_OAUTH_CLIENT_ID is not None
-    and settings.GOOGLE_OAUTH_CLIENT_SECRET is not None
-    ), (
-        "Google project credentials should not be empty, "
-        f"see {readme('get-google-credentials')}"
-        )
 client_config = {
     'web': {
         "client_id": settings.GOOGLE_OAUTH_CLIENT_ID,

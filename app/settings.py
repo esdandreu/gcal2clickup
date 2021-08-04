@@ -16,6 +16,7 @@ import dj_database_url
 import dotenv
 import os
 
+from app.utils import readme
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,8 +28,10 @@ if os.path.isfile(dotenv_file):
 
 # DOMAIN
 DOMAIN = os.getenv('DOMAIN')
+assert DOMAIN is not None, f'''Application domain should be specified, 
+       see {readme('required-environmental-variables')}'''
 if not (DOMAIN.startswith('https://') or DOMAIN.startswith('http://')):
-    DOMAIN = 'https://' +  DOMAIN
+    DOMAIN = 'https://' + DOMAIN
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.2/howto/deployment/checklist/
@@ -180,6 +183,11 @@ DATABASES = {
 # Google OAuth login into admin
 GOOGLE_OAUTH_CLIENT_ID = os.getenv('GOOGLE_OAUTH_CLIENT_ID')
 GOOGLE_OAUTH_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH_CLIENT_SECRET')
+assert (
+    GOOGLE_OAUTH_CLIENT_ID is not None
+    and GOOGLE_OAUTH_CLIENT_SECRET is not None
+    ), f'''Google project credentials should not be empty, 
+       see {readme('get-google-credentials')}'''
 GOOGLE_OAUTH_AUTH_URI = "https://accounts.google.com/o/oauth2/auth"
 GOOGLE_OAUTH_REVOKE_URI = "https://accounts.google.com/o/oauth2/revoke"
 GOOGLE_OAUTH_TOKEN_URI = "https://accounts.google.com/o/oauth2/token"

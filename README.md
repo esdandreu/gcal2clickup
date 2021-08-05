@@ -51,5 +51,11 @@ Google](https://developers.google.com/calendar/api/guides/push#registering-your-
 in the first step, download and save the `html` file as
 `google_verification.html` in the root of this project.
 
+## Get clickup personal API key
+https://docs.clickup.com/en/articles/1367130-getting-started-with-the-clickup-api#personal-api-key
+
+You will need to put this personal API key in your profile once the app has
+been 
+
 # Thanks to
 https://github.com/matthiask/django-admin-sso

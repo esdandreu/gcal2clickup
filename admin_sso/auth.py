@@ -1,17 +1,7 @@
 from django.contrib.auth import get_user_model, user_login_failed
-from django.contrib.auth.models import User, Permission
 
 import jwt
 
-ADD_PERMISSIONS = [
-    'Can change profile',
-    'Can add matcher',
-    'Can change matcher',
-    'Can delete matcher',
-    'Can change synced event',
-    'Can view google calendar webhook',
-    'Can view clickup webhook',
-    ]
 
 
 class DjangoSSOAuthBackend(object):
@@ -33,15 +23,10 @@ class DjangoSSOAuthBackend(object):
             if _id['email_verified']:
                 email = _id['email']
                 user, created = User.objects.get_or_create(username=email)
-                print(user)
                 if created:
                     user.email = email
                     user.set_unusable_password()
                     user.is_staff = True
-                    user.user_permissions.set(
-                        Permission.objects.filter(name__in=ADD_PERMISSIONS)
-                        )
-
                 # Save credentials
                 user.profile.google_auth_token = \
                     google_auth_credentials.get('token', None)

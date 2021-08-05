@@ -134,11 +134,6 @@ class Matcher(models.Model):
     google_calendar_webhook = models.ForeignKey(
         GoogleCalendarWebhook, on_delete=models.CASCADE, editable=False
         )
-    # ! Not necessary in model, could be passed by the form and then retrieved
-    # ! from the google_calendar_webhook
-    # calendar_id = models.CharField(
-    #     max_length=64, help_text=("Google Calendar's calendar identifier")
-    #     )
     list_id = models.CharField(
         max_length=64, help_text=("Clickup list identifier")
         )
@@ -184,20 +179,10 @@ class Matcher(models.Model):
                 )
 
     def save(self, *args, **kwargs):
-        # if not getattr(self, 'google_calendar_webhook', None):
-        #     # get_or_create with a custom create method
-        #     try:
-        #         self.google_calendar_webhook = GoogleCalendarWebhook.objects.get(
-        #             calendar_id=self.calendar_id
-        #             )
-        #     except GoogleCalendarWebhook.DoesNotExist:
-        #         self.google_calendar_webhook = GoogleCalendarWebhook.create(
-        #             user=self.user, calendarId=self.calendar_id
-        #             )
+        # Reset the checks when modified
         self.google_calendar_webhook.checked_at = None
         self.google_calendar_webhook.save()
-        # Reset the checks when modified
-        super(Matcher, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
 
     @property
     def name_regex(self):

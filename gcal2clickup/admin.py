@@ -80,9 +80,11 @@ class MatcherAdmin(UserModelAdmin):
         opt = {}
         if obj:
             opt['calendar_initial'] = obj.google_calendar_webhook.calendar_id
+            opt['list_initial'] = obj.list_id
         return matcher_form_factory(
             user=request.user,
             calendar_choices=request.user.profile.calendar_choices,
+            list_choices=request.user.profile.list_choices,
             **opt
             )
 

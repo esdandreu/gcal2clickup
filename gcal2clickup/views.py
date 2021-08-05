@@ -16,7 +16,7 @@ def google_calendar_endpoint(request):
         channel_id = request.headers['X-Goog-Channel-Id']
         resource_id = request.headers['X-Goog-Resource-Id']
         try:
-            webhook = GoogleCalendarWebhook.get(
+            webhook = GoogleCalendarWebhook.objects.get(
                 channel_id=channel_id, resource_id=resource_id
                 )
         except GoogleCalendarWebhook.DoesNotExist:

@@ -34,11 +34,13 @@ class GoogleCalendarWebhook(models.Model):
             updated events'''
             ),
         )
-    
+
     @property
-    def calendar(self) -> Tuple[str, str]: # (name, id)
-        # TODO query google calendar API for the name
-        return (self.calendar_id, self.calendar_id)
+    def calendar(self) -> Tuple[str, str]:  # (name, id)
+        name = self.user.profile.google_calendar.calendars.get(
+            calendarId=self.calendar_id
+            ).execute()['summary']
+        return (self.calendar_id, name)
 
     @classmethod
     def create(
@@ -199,9 +201,7 @@ class Matcher(models.Model):
 
     @property
     def name_regex(self):
-        return re.compile(
-            self._name_regex
-            ) if self._name_regex else None
+        return re.compile(self._name_regex) if self._name_regex else None
 
     @property
     def description_regex(self):

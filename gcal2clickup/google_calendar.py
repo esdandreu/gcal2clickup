@@ -3,6 +3,8 @@ from typing import Tuple
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from app import settings
+
+
 class GoogleCalendar:
     def __init__(self, token, refresh_token):
         credentials = Credentials(
@@ -13,22 +15,19 @@ class GoogleCalendar:
             client_secret=settings.GOOGLE_OAUTH_CLIENT_SECRET
             )
         self.service = build('calendar', 'v3', credentials=credentials)
-    
+
     def __getattr__(self, name: str):
         return getattr(self.service, name)()
 
-    def list_calendars(self):
-        items = []
-        page_token = None
-        while True:
-            calendar_list = self.service.calendarList().list(
-                pageToken=page_token
-                ).execute()
-            items.extend(calendar_list['items'])
-            page_token = calendar_list.get('nextPageToken')
-            if not page_token:
-                break
-        return items
+    def list_calendars(self, **kwargs):
+        nextPageToken = True
+        while nextPageToken:
+            if isinstance(nextPageToken, str):
+                kwargs['pageToken'] = nextPageToken
+            response = self.service.calendarList().list(**kwargs).execute()
+            nextPageToken = response.get('nextPageToken', None)
+            for calendar in response['items']:
+                yield calendar
 
     def list_events(self, calendarId, **kwargs):
         nextPageToken = True
@@ -36,9 +35,7 @@ class GoogleCalendar:
             if isinstance(nextPageToken, str):
                 kwargs['pageToken'] = nextPageToken
             response = self.events.list(
-                calendarId=calendarId,
-                singleEvents=True,
-                **kwargs
+                calendarId=calendarId, singleEvents=True, **kwargs
                 ).execute()
             nextPageToken = response.get('nextPageToken', None)
             for event in response['items']:
@@ -56,6 +53,6 @@ class GoogleCalendar:
                     }
                 }
             ).execute()
-    
+
     def stop_watch(self, id, resourceId):
         return self.channels.stop(id=id, resourceId=resourceId).execute()

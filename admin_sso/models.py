@@ -28,6 +28,12 @@ class Profile(models.Model):
             refresh_token=self.google_auth_refresh_token
             )
 
+    @property
+    def calendar_choices(self):
+        return [(c['id'], c['summary'])
+                for c in self.google_calendar.list_calendars()]
+
+
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:

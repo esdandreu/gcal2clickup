@@ -158,9 +158,10 @@ class Matcher(models.Model):
         GoogleCalendarWebhook, on_delete=models.CASCADE, editable=False
         )
     list_id = models.CharField(max_length=64, help_text=('Clickup list.'))
-    tag_name = models.CharField(
+    _tags = models.CharField(
         max_length=64,
         blank=True,
+        null=True,
         help_text=(
             '''Clickup tag name that will be added to matched events.
             One can add more than one tag by separating them with commas'''
@@ -212,6 +213,10 @@ class Matcher(models.Model):
         super().save(*args, **kwargs)
 
     @property
+    def tags(self):
+        return [s.strip() for s in self._tags.split(',')]
+
+    @property
     def name_regex(self):
         return re.compile(self._name_regex) if self._name_regex else None
 
@@ -252,10 +257,12 @@ class Matcher(models.Model):
         match: re.Match = None,
         ) -> Tuple[dict, datetime, datetime]:
         logging.debug(f'Creating task from event {event["summary"]}')
-        data = {'name': event['summary']}
+        data = {
+            'name': event['summary'],
+            'tags': ['GoogleCalendar'] + self.tags,
+            }
         if 'description' in event:
             data['markdown_description'] = markdownify(event['description'])
-        # TODO add tag
         (start_date, due_date, all_day) = \
             self.user.profile.google_calendar.event_bounds(event)
         task = self.user.profile.clickup.create_task(

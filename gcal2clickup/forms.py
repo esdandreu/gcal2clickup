@@ -9,7 +9,7 @@ class MatcherForm(forms.ModelForm):
     class Meta:
         model = Matcher
         fields = [
-            'user', 'calendar_id', 'list_id', 'tag_name', '_name_regex',
+            'user', 'calendar_id', 'list_id', '_tags', '_name_regex',
             '_description_regex'
             ]
 

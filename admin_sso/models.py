@@ -70,6 +70,16 @@ class Profile(models.Model):
     def save(self, *args, **kwargs):
         permissions = BASE_PROFILE_PERMISSIONS
         if self.clickup_pk:
+            # TODO get webhooks
+            # try:
+            #     obj.google_calendar_webhook = GoogleCalendarWebhook.objects.get(
+            #         calendar_id=calendar_id,
+            #         )
+            # except GoogleCalendarWebhook.DoesNotExist:
+            #     obj.google_calendar_webhook = GoogleCalendarWebhook.create(
+            #         user=obj.user,
+            #         calendarId=calendar_id,
+            #         )
             permissions = permissions + FULL_PROFILE_PERMISSIONS
         self.user.user_permissions.set(
             Permission.objects.filter(name__in=permissions)

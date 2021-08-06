@@ -21,7 +21,7 @@ def google_calendar_endpoint(request):
                 )
         except GoogleCalendarWebhook.DoesNotExist:
             # ? Try to stop the webhook?
-            logging.warnign(
+            logging.warning(
                 f'Google Calendar notification not recognized: '
                 f'{request.headers}'
                 )

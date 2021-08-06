@@ -214,7 +214,7 @@ class Matcher(models.Model):
 
     @property
     def tags(self):
-        return [s.strip() for s in self._tags.split(',')]
+        return [s.strip() for s in self._tags.split(',')] if self._tags else []
 
     @property
     def name_regex(self):

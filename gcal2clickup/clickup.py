@@ -1,5 +1,7 @@
 from typing import List
 
+from datetime import datetime
+
 import requests
 import json
 # TODO method: mark sync, add tag "GoogleCalendar"
@@ -89,10 +91,42 @@ class Clickup:
             for _list in self.get(f'space/{space["id"]}/list')['lists']:
                 yield _list
 
+    def create_task(
+            self,
+            list_id: str,
+            start_date: datetime,
+            due_date: datetime,
+            all_day: bool = False,
+            **data
+        ):
+        data['start_date'] = start_date.timestamp() * 1000
+        data['due_date'] = due_date.timestamp() * 1000
+        data['start_date_time'] = not all_day
+        data['due_date_time'] = not all_day
+        return self.post(f'list/{list_id}/task', data=data)
+
+    def update_task(
+            self,
+            task_id: str,
+            start_date: datetime,
+            due_date: datetime,
+            all_day: bool = False,
+            **data
+        ):
+        data['start_date'] = start_date.timestamp() * 1000
+        data['due_date'] = due_date.timestamp() * 1000
+        data['start_date_time'] = not all_day
+        data['due_date_time'] = not all_day
+        return self.put(f'task/{task_id}', data=data)
+    
+    def delete_task(self, task_id: str):
+        return self.delete(f'task/{task_id}')
+
+
     @staticmethod
     def repr_list(l: dict) -> str:
         if not l["folder"]["hidden"]:
-            folder = " > "+l["folder"]["name"]
+            folder = " > " + l["folder"]["name"]
         else:
             folder = ""
         return f'{l["space"]["name"]}{folder} > {l["name"]}'

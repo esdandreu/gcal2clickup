@@ -4,6 +4,7 @@ from django.db import models
 from django.urls import reverse
 from django.dispatch import receiver
 from django.contrib.auth.models import User
+from django.utils.timezone import make_aware
 from django.db.models.signals import pre_delete
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
@@ -14,6 +15,7 @@ from app.settings import DOMAIN
 
 from datetime import datetime
 
+import logging
 import uuid
 import re
 
@@ -34,6 +36,9 @@ class GoogleCalendarWebhook(models.Model):
             updated events'''
             ),
         )
+
+    def __str__(self):
+        return self.calendar[1]
 
     @property
     def calendar(self) -> Tuple[str, str]:  # (name, id)
@@ -66,28 +71,47 @@ class GoogleCalendarWebhook(models.Model):
     def refresh(self):
         print(self.matcher.user)
 
-    def check_events(self) -> Tuple[int, int]:
+    def check_events(self) -> Tuple[int, int]:  # (created, updated)
         # Check all the related matchers
         google_calendar = self.user.profile.google_calendar
         matchers = self.matcher_set.order_by('order')
         if not self.checked_at:
-            kwargs = {'timeMin': datetime.utcnow().isoformat("T") + "Z"}
+            kwargs = {
+                'timeMin': datetime.utcnow().isoformat('T') + 'Z',
+                'singleEvents': True,
+                }
         else:
-            kwargs = {'updateMin': self.checked_at.isoformat("T") + "Z"}
-        print(kwargs)
-
+            kwargs = {
+                'updatedMin': self.checked_at.isoformat('T'),
+                'orderBy': 'updated',
+                }
+        kwargs['showDeleted'] = True
+        created = 0
+        updated = 0
+        deleted = 0
         for event in google_calendar.list_events(
             calendarId=self.calendar_id, **kwargs
             ):
             try:
                 synced_event = SyncedEvent.objects.get(event_id=event['id'])
-                synced_event.update_event(event)
+                if event['status'] == 'cancelled':
+                    synced_event.delete_task()
+                    synced_event.delete()
+                    deleted += 1
+                else:
+                    synced_event.update_task(event)
+                    synced_event.save()
+                    updated += 1
             except SyncedEvent.DoesNotExist:
-                match, matcher = matchers.match(event=event)
-                if match:
-                    SyncedEvent.create(matcher, match, event=event)
-        # TODO set matchers google_calendar_checked_at to now
-        matchers.update(google_calendar_webhook_checked_at=datetime.utcnow())
+                # Create a new synced event on confirmed events that match
+                if event['status'] != 'cancelled':
+                    match, matcher = matchers.match(event=event)
+                    if match:
+                        SyncedEvent.create(matcher, match, event=event).save()
+                        created += 1
+        self.checked_at = make_aware(datetime.utcnow())
+        self.save()
+        return (created, updated)
 
 
 @receiver(pre_delete, sender=GoogleCalendarWebhook)
@@ -121,11 +145,6 @@ class MatcherQuerySet(models.QuerySet):
 class MatcherManager(models.Manager):
     def get_queryset(self):
         return MatcherQuerySet(self.model, using=self._db)
-
-
-# Constants for the sync_description field
-SYNC_GOOGLE_CALENDAR_DESCRIPTION = True
-SYNC_CLICKUP_DESCRIPTION = False
 
 
 class Matcher(models.Model):
@@ -179,6 +198,9 @@ class Matcher(models.Model):
                 )
 
     def save(self, *args, **kwargs):
+        # TODO get tag, if can't be found then create it on the appropiate
+        # space?
+        # TODO test if a tag can be created when creating a task
         # Reset the checks when modified
         self.google_calendar_webhook.checked_at = None
         self.google_calendar_webhook.save()
@@ -219,12 +241,49 @@ class Matcher(models.Model):
     def _match_task(self, task: dict) -> re.Match:
         raise NotImplementedError
 
+    def _create_task(
+        self,
+        event: dict,
+        match: re.Match = None,
+        ) -> Tuple[dict, datetime, datetime]:
+        logging.debug(f'Creating task from event {event["summary"]}')
+        data = {'name': event['summary']}
+        if 'description' in event:
+            # TODO html to markdown
+            data['description'] = event['description']
+        # TODO add tag
+        (start_date, due_date, all_day) = \
+            self.user.profile.google_calendar.event_bounds(event)
+        task = self.user.profile.clickup.create_task(
+            list_id=self.list_id,
+            start_date=start_date,
+            due_date=due_date,
+            all_day=all_day,
+            **data
+            )
+        return (task, start_date, due_date)
+
+    def _create_event(
+        self,
+        task: dict,
+        match: re.Match = None,
+        ) -> Tuple[dict, datetime, datetime]:
+        raise NotImplementedError
+
+
+# Constants for the sync_description field
+SYNC_GOOGLE_CALENDAR_DESCRIPTION = True
+SYNC_CLICKUP_DESCRIPTION = False
+
 
 class SyncedEvent(models.Model):
     matcher = models.ForeignKey(Matcher, on_delete=models.CASCADE)
-    task_id = models.CharField(max_length=64, primary_key=True)
-    event_id = models.CharField(max_length=64)
-    end_time = models.DateTimeField()
+    task_id = models.CharField(
+        max_length=64, primary_key=True, null=False, blank=False
+        )
+    event_id = models.CharField(max_length=64, null=False, blank=False)
+    start = models.DateTimeField()
+    end = models.DateTimeField()
     sync_description = models.BooleanField(null=True)
 
     @property
@@ -234,26 +293,52 @@ class SyncedEvent(models.Model):
             eventId=self.event_id,
             ).execute()
 
-    def update_task(self, event=None):
+    def update_task(self, event: dict = None) -> dict:
         if event is None:
             event = self.event
-        raise NotImplementedError
-
-    @classmethod
-    def _create_task(self, event, match=None):
         print(event)
-        raise NotImplementedError
+        # TODO add tags?
+        data = {'name': event['summary']}
+        if self.sync_description is SYNC_GOOGLE_CALENDAR_DESCRIPTION:
+            if 'description' in event:
+                # TODO html to markdown
+                data['description'] = event['description']
+        else:
+            self.sync_description = None
+        (start_date, due_date, all_day) = \
+            self.matcher.user.profile.google_calendar.event_bounds(event)
+        task = self.matcher.user.profile.clickup.update_task(
+            task_id=self.task_id,
+            start_date=start_date,
+            due_date=due_date,
+            all_day=all_day,
+            **data
+            )
+        self.start = start_date
+        self.end = due_date
+        return task
 
-    @classmethod
-    def _create_event(self, task, match):
+    def delete_task(self) -> dict:
+        return self.matcher.user.profile.clickup.delete_task(
+            task_id=self.task_id
+            )
+
+    def update_event(self, task=None):
+        if task is None:
+            task = self.task
+        print(task)
         raise NotImplementedError
 
     @classmethod
     def create(cls, matcher, match, *, event=None, task=None) -> 'SyncedEvent':
         if event and task is None:
-            task_id = cls._create_task(event, match)
+            (task, start, end) = matcher._create_task(event, match)
+            task_id = task['id']
+            event_id = event['id']
         elif task and event is None:
-            event_id = cls._create_event(task, match)
+            (event, start, end) = matcher._create_event(task, match)
+            event_id = event['id']
+            task_id = task['id']
         else:
             raise AttributeError(
                 f'''Either "event" or "task" must be a non empty dictionary.
@@ -261,5 +346,10 @@ class SyncedEvent(models.Model):
                 event={event}
                 task={task}'''
                 )
-        raise NotImplementedError
-        return cls()
+        return cls(
+            matcher=matcher,
+            task_id=task_id,
+            event_id=event_id,
+            start=start,
+            end=end,
+            )

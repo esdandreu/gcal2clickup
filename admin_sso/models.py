@@ -15,7 +15,9 @@ FULL_PROFILE_PERMISSIONS = [
     'Can add matcher',
     'Can change matcher',
     'Can delete matcher',
+    'Can view synced event',
     'Can change synced event',
+    'Can delete synced event',
     'Can view google calendar webhook',
     'Can view clickup webhook',
     ]

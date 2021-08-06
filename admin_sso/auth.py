@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model, user_login_failed
 
 import jwt

@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib import messages
 
 from gcal2clickup.forms import matcher_form_factory
 from gcal2clickup.models import Matcher, GoogleCalendarWebhook, ClickupWebhook, SyncedEvent
@@ -25,8 +26,9 @@ class UserModelAdmin(admin.ModelAdmin):
 
 @admin.register(GoogleCalendarWebhook)
 class GoogleCalendarWebhookAdmin(UserModelAdmin):
-    list_display = ['get_calendar', 'get_checked_at']
+    list_display = ['get_calendar', 'checked_at']
     actions = ['check_events', 'delete_selected']
+    readonly_fields = ['checked_at']
 
     @admin.action(
         description=
@@ -34,16 +36,16 @@ class GoogleCalendarWebhookAdmin(UserModelAdmin):
         )
     def check_events(modeladmin, request, queryset):
         for obj in queryset:
-            obj.check_events()
+            created, updated = obj.check_events()
+            messages.add_message(
+                request, messages.INFO,
+                f'''Checked {obj}: Created {created} synced events, 
+                updated {updated} existing ones'''
+                )
 
     @admin.display(ordering='calendar', description='Calendar')
     def get_calendar(self, obj):
         return obj.calendar[1]
-
-    @admin.display(ordering='checked_at', description='Checked at')
-    def get_checked_at(self, obj):
-        return obj.checked_at
-
 
 @admin.register(ClickupWebhook)
 class ClickupWebhookAdmin(UserModelAdmin):
@@ -62,8 +64,14 @@ class MatcherAdmin(UserModelAdmin):
         'Check the related google calendar webhooks for updated events'
         )
     def check_events(modeladmin, request, queryset):
+        # TODO queryset get different google_calendar_webhooks
         for obj in queryset:
-            obj.google_calendar_webhook.check_events()
+            (created, updated) = obj.google_calendar_webhook.check_events()
+            messages.add_message(
+                request, messages.INFO,
+                f'''Checked {obj}: Created {created} synced events, 
+                updated {updated} existing ones'''
+                )
 
     @admin.display(ordering='calendar', description='Calendar')
     def get_calendar(self, obj):
@@ -109,6 +117,9 @@ class MatcherAdmin(UserModelAdmin):
 
 @admin.register(SyncedEvent)
 class SyncedEventAdmin(admin.ModelAdmin):
+    list_display = ['task_id', 'event_id', 'start', 'end']
+    ordering = ['start', 'end']
+
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         if request.user.is_superuser:

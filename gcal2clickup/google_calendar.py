@@ -1,8 +1,10 @@
 from typing import Tuple
+from datetime import datetime
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from app import settings
+
 
 
 class GoogleCalendar:
@@ -18,6 +20,18 @@ class GoogleCalendar:
 
     def __getattr__(self, name: str):
         return getattr(self.service, name)()
+
+    @staticmethod
+    def event_bounds(event) -> Tuple[datetime, datetime, bool]:
+        if 'dateTime' in event['start']:
+            start = datetime.fromisoformat(event['start']['dateTime'])
+            end = datetime.fromisoformat(event['end']['dateTime'])
+            all_day = False
+        else:
+            start = datetime.fromisoformat(event['start']['date'])
+            end = datetime.fromisoformat(event['end']['date'])
+            all_day = True
+        return (start, end, all_day)
 
     def list_calendars(self, **kwargs):
         nextPageToken = True
@@ -35,7 +49,7 @@ class GoogleCalendar:
             if isinstance(nextPageToken, str):
                 kwargs['pageToken'] = nextPageToken
             response = self.events.list(
-                calendarId=calendarId, singleEvents=True, **kwargs
+                calendarId=calendarId, **kwargs
                 ).execute()
             nextPageToken = response.get('nextPageToken', None)
             for event in response['items']:

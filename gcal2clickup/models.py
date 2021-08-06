@@ -137,7 +137,6 @@ class ClickupWebhook(models.Model):
         print(self.user)
 
 
-
 class MatcherQuerySet(models.QuerySet):
     def match(self, **kwargs) -> Tuple[re.Match, 'Matcher']:
         for matcher in self:
@@ -158,15 +157,15 @@ class Matcher(models.Model):
     google_calendar_webhook = models.ForeignKey(
         GoogleCalendarWebhook, on_delete=models.CASCADE, editable=False
         )
-    list_id = models.CharField(
-        max_length=64, help_text=('Clickup list.')
-        )
+    list_id = models.CharField(max_length=64, help_text=('Clickup list.'))
     tag_name = models.CharField(
         max_length=64,
         blank=True,
-        help_text=('''Clickup tag name that will be added to matched events.
-            One can add more than one tag by separating them with commas''')
+        help_text=(
+            '''Clickup tag name that will be added to matched events.
+            One can add more than one tag by separating them with commas'''
             )
+        )
     _name_regex = models.CharField(
         max_length=1024,
         blank=True,
@@ -255,7 +254,7 @@ class Matcher(models.Model):
         logging.debug(f'Creating task from event {event["summary"]}')
         data = {'name': event['summary']}
         if 'description' in event:
-            data['description'] = markdownify(event['description'])
+            data['markdown_description'] = markdownify(event['description'])
         # TODO add tag
         (start_date, due_date, all_day) = \
             self.user.profile.google_calendar.event_bounds(event)
@@ -306,7 +305,9 @@ class SyncedEvent(models.Model):
         data = {'name': event['summary']}
         if self.sync_description is SYNC_GOOGLE_CALENDAR_DESCRIPTION:
             if 'description' in event:
-                data['description'] = markdownify(event['description'])
+                data['markdown_description'] = markdownify(
+                    event['description']
+                    )
         else:
             self.sync_description = None
         (start_date, due_date, all_day) = \
@@ -340,10 +341,12 @@ class SyncedEvent(models.Model):
             (task, start, end) = matcher._create_task(event, match)
             task_id = task['id']
             event_id = event['id']
+            sync_description = SYNC_GOOGLE_CALENDAR_DESCRIPTION
         elif task and event is None:
             (event, start, end) = matcher._create_event(task, match)
             event_id = event['id']
             task_id = task['id']
+            sync_description = SYNC_CLICKUP_DESCRIPTION
         else:
             raise AttributeError(
                 f'''Either "event" or "task" must be a non empty dictionary.
@@ -357,4 +360,5 @@ class SyncedEvent(models.Model):
             event_id=event_id,
             start=start,
             end=end,
+            sync_description=sync_description,
             )

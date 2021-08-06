@@ -212,7 +212,6 @@ class Matcher(models.Model):
 
     @property
     def tags(self):
-        print(self._tags)
         return [s.strip() for s in self._tags.split(',')] if self._tags else []
 
     @property
@@ -260,7 +259,6 @@ class Matcher(models.Model):
             'name': event['summary'],
             'tags': ['google_calendar'] + self.tags,
             }
-        print(data)
         if 'description' in event:
             data['markdown_description'] = markdownify(event['description'])
         (start_date, due_date, all_day) = \

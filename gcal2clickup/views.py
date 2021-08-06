@@ -26,7 +26,6 @@ def google_calendar_endpoint(request):
                 f'{request.headers}'
                 )
             return HttpResponseForbidden()
-        print('GOOGLE CALENDAR')
         webhook.check_events()
         return HttpResponse('Done')
     return HttpResponse('Hello wolrd')

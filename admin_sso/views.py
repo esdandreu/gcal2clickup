@@ -74,7 +74,6 @@ def end(request):
         authorization_response = authorization_response.replace(
             'http://127.0.0.1:8000', 'https://127.0.0.1:8000'
             )
-        print(authorization_response)
 
     flow.fetch_token(authorization_response=authorization_response)
 

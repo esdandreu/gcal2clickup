@@ -8,12 +8,11 @@ from django.utils.timezone import make_aware
 from django.db.models.signals import pre_delete
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
-
-from sort_order_field import SortOrderField
-
 from app.settings import DOMAIN
 
+from sort_order_field import SortOrderField
 from datetime import datetime
+from markdownify import markdownify
 
 import logging
 import uuid
@@ -69,7 +68,8 @@ class GoogleCalendarWebhook(models.Model):
             )
 
     def refresh(self):
-        print(self.matcher.user)
+        # TODO check if it is expired and create new if needed
+        print(self.user)
 
     def check_events(self) -> Tuple[int, int]:  # (created, updated)
         # Check all the related matchers
@@ -132,6 +132,11 @@ class ClickupWebhook(models.Model):
 
     # TODO delete webhook on delete
 
+    def refresh(self):
+        # TODO check if it is expired and create new if needed
+        print(self.user)
+
+
 
 class MatcherQuerySet(models.QuerySet):
     def match(self, **kwargs) -> Tuple[re.Match, 'Matcher']:
@@ -154,13 +159,14 @@ class Matcher(models.Model):
         GoogleCalendarWebhook, on_delete=models.CASCADE, editable=False
         )
     list_id = models.CharField(
-        max_length=64, help_text=("Clickup list identifier")
+        max_length=64, help_text=('Clickup list.')
         )
     tag_name = models.CharField(
         max_length=64,
         blank=True,
-        help_text=("Clickup tag name that will be added to matched events")
-        )
+        help_text=('''Clickup tag name that will be added to matched events.
+            One can add more than one tag by separating them with commas''')
+            )
     _name_regex = models.CharField(
         max_length=1024,
         blank=True,
@@ -249,8 +255,7 @@ class Matcher(models.Model):
         logging.debug(f'Creating task from event {event["summary"]}')
         data = {'name': event['summary']}
         if 'description' in event:
-            # TODO html to markdown
-            data['description'] = event['description']
+            data['description'] = markdownify(event['description'])
         # TODO add tag
         (start_date, due_date, all_day) = \
             self.user.profile.google_calendar.event_bounds(event)
@@ -268,6 +273,7 @@ class Matcher(models.Model):
         task: dict,
         match: re.Match = None,
         ) -> Tuple[dict, datetime, datetime]:
+        logging.debug(f'Creating event from task {task["name"]}')
         raise NotImplementedError
 
 
@@ -296,13 +302,11 @@ class SyncedEvent(models.Model):
     def update_task(self, event: dict = None) -> dict:
         if event is None:
             event = self.event
-        print(event)
-        # TODO add tags?
+        logging.debug(f'Updating task from event {event["summary"]}')
         data = {'name': event['summary']}
         if self.sync_description is SYNC_GOOGLE_CALENDAR_DESCRIPTION:
             if 'description' in event:
-                # TODO html to markdown
-                data['description'] = event['description']
+                data['description'] = markdownify(event['description'])
         else:
             self.sync_description = None
         (start_date, due_date, all_day) = \
@@ -327,6 +331,7 @@ class SyncedEvent(models.Model):
         if task is None:
             task = self.task
         print(task)
+        logging.debug(f'Updating event from task {task["name"]}')
         raise NotImplementedError
 
     @classmethod

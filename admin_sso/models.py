@@ -76,6 +76,14 @@ class Profile(models.Model):
             )
         super().save(*args, **kwargs)
 
+    def refresh_webhooks(self):
+        for webhooks in [
+            self.user.google_calendar_webhook_set,
+            self.user.clickup_webhook_set,
+            ]:
+            for webhook in webhooks:
+                webhook.refresh()
+
 
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):

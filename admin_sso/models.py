@@ -40,7 +40,6 @@ class Profile(models.Model):
     google_auth_refresh_token = models.CharField(
         blank=True, max_length=255, editable=False
         )
-
     # google_auth_expiry = models.DateTimeField(blank=True, editable=False)
 
     def __str__(self):

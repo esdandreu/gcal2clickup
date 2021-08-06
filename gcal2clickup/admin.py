@@ -47,6 +47,7 @@ class GoogleCalendarWebhookAdmin(UserModelAdmin):
     def get_calendar(self, obj):
         return obj.calendar[1]
 
+
 @admin.register(ClickupWebhook)
 class ClickupWebhookAdmin(UserModelAdmin):
     pass
@@ -55,7 +56,8 @@ class ClickupWebhookAdmin(UserModelAdmin):
 @admin.register(Matcher)
 class MatcherAdmin(UserModelAdmin):
     list_display = [
-        '_name_regex', '_description_regex', 'get_calendar', 'get_checked_at'
+        '_name_regex', '_description_regex', 'get_calendar', '_tags',
+        'get_checked_at'
         ]
     actions = ['check_events', 'delete_selected']
 

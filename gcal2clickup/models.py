@@ -131,6 +131,7 @@ class ClickupWebhook(models.Model):
     # TODO create webhook on creation
 
     # TODO delete webhook on delete
+            # address=f'{DOMAIN}{reverse("google_calendar_endpoint")}',
 
     def refresh(self):
         # TODO check if it is expired and create new if needed
@@ -204,9 +205,6 @@ class Matcher(models.Model):
                 )
 
     def save(self, *args, **kwargs):
-        # TODO get tag, if can't be found then create it on the appropiate
-        # space?
-        # TODO test if a tag can be created when creating a task
         # Reset the checks when modified
         self.google_calendar_webhook.checked_at = None
         self.google_calendar_webhook.save()
@@ -214,6 +212,7 @@ class Matcher(models.Model):
 
     @property
     def tags(self):
+        print(self._tags)
         return [s.strip() for s in self._tags.split(',')] if self._tags else []
 
     @property
@@ -259,8 +258,9 @@ class Matcher(models.Model):
         logging.debug(f'Creating task from event {event["summary"]}')
         data = {
             'name': event['summary'],
-            'tags': ['GoogleCalendar'] + self.tags,
+            'tags': ['google_calendar'] + self.tags,
             }
+        print(data)
         if 'description' in event:
             data['markdown_description'] = markdownify(event['description'])
         (start_date, due_date, all_day) = \

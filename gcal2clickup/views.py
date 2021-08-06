@@ -37,15 +37,3 @@ def clickup_endpoint(request):
     print(request.body)
     return HttpResponse('Hello wolrd')
 
-
-# If due date is at 2:00:00 AM then it is the whole day
-
-# {
-#     "endpoint": "https://gcal2clickup.herokuapp.com/api/clickup/",
-#     "events": [
-#         "taskCreated",
-#         "taskUpdated",
-#         "taskDeleted",
-#         "taskMoved",
-#     ]
-# }

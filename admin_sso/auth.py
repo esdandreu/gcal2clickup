@@ -4,7 +4,6 @@ from django.contrib.auth import get_user_model, user_login_failed
 import jwt
 
 
-
 class DjangoSSOAuthBackend(object):
     def get_user(self, user_id):
         cls = get_user_model()
@@ -31,8 +30,11 @@ class DjangoSSOAuthBackend(object):
                 # Save credentials
                 user.profile.google_auth_token = \
                     google_auth_credentials.get('token', None)
-                user.profile.google_auth_refresh_token = \
-                    google_auth_credentials.get('_refresh_token', None)
+                refresh_token = google_auth_credentials.get(
+                    '_refresh_token', None
+                    )
+                if refresh_token:
+                    user.profile.google_auth_refresh_token = refresh_token
                 user.save()
                 return user
 

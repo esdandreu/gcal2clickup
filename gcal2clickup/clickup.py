@@ -130,3 +130,17 @@ class Clickup:
         else:
             folder = ""
         return f'{l["space"]["name"]}{folder} > {l["name"]}'
+    
+    def create_webhook(self):
+        pass
+    # If due date is at 2:00:00 AM then it is the whole day
+
+    # {
+    #     "endpoint": "https://gcal2clickup.herokuapp.com/api/clickup/",
+    #     "events": [
+    #         "taskCreated",
+    #         "taskUpdated",
+    #         "taskDeleted",
+    #         "taskMoved",
+    #     ]
+    # }

@@ -2,11 +2,10 @@ from django.http import HttpResponse
 from django.http.response import HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 
-from gcal2clickup.models import GoogleCalendarWebhook, SyncedEvent
+from gcal2clickup.models import GoogleCalendarWebhook, ClickupUser
 
 import logging
-
-from datetime import datetime
+import json
 
 
 @csrf_exempt
@@ -35,5 +34,26 @@ def google_calendar_endpoint(request):
 def clickup_endpoint(request):
     print('CLICKUP!')
     print(request.body)
+    body = json.loads(request.body)
+    user_id = body['history_items']['user']['id']
+    try:
+        clickup = ClickupUser.objects.get(pk=user_id).api
+    except ClickupUser.DoesNotExist:
+        return HttpResponseForbidden()
+    event = body['event']
+    if event == 'taskCreated':
+        pass
+    elif event == 'taskUpdated':
+        pass
+    elif event == 'taskDeleted':
+        pass
+    elif event == 'taskMoved':
+        pass
+    else:
+        return HttpResponseForbidden()
+    # "taskCreated",
+    #         "taskUpdated",
+    #         "taskDeleted",
+    #         "taskMoved",
     return HttpResponse('Hello wolrd')
 

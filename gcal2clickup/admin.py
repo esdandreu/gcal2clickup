@@ -2,7 +2,9 @@ from django.contrib import admin
 from django.contrib import messages
 
 from gcal2clickup.forms import matcher_form_factory
-from gcal2clickup.models import Matcher, GoogleCalendarWebhook, ClickupWebhook, SyncedEvent
+from gcal2clickup.models import (
+    Matcher, GoogleCalendarWebhook, ClickupUser, SyncedEvent
+    )
 
 
 class UserModelAdmin(admin.ModelAdmin):
@@ -48,9 +50,21 @@ class GoogleCalendarWebhookAdmin(UserModelAdmin):
         return obj.calendar[1]
 
 
-@admin.register(ClickupWebhook)
-class ClickupWebhookAdmin(UserModelAdmin):
-    pass
+@admin.register(ClickupUser)
+class ClickupUserAdmin(UserModelAdmin):
+    list_display = ['get_username']
+
+    @admin.display(ordering='username', description='Username')
+    def get_username(self, obj):
+        return obj.username
+
+    def get_form(self, request, obj, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        # Add user
+        if not request.user.is_superuser:
+            form.base_fields['user'].initial = request.user
+            form.base_fields['user'].disabled = True
+        return form
 
 
 @admin.register(Matcher)
@@ -114,6 +128,8 @@ class MatcherAdmin(UserModelAdmin):
                     user=obj.user,
                     calendarId=calendar_id,
                     )
+        webhook_id, obj.list_id = form.data['clickup_list'].split(',')
+        obj.clickup_user = ClickupUser.objects.get(pk=webhook_id)
         super().save_model(request, obj, form, change)
 
 

@@ -1,14 +1,16 @@
 from django.db import models
+from django.core.cache import cache
 from django.dispatch import receiver
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.contrib.auth.models import User, Permission
 
 from gcal2clickup.google_calendar import GoogleCalendar
-from gcal2clickup.clickup import Clickup
 
 BASE_PROFILE_PERMISSIONS = [
-    'Can change profile',
+    'Can add clickup user',
+    'Can change clickup user',
+    'Can delete clickup user',
     ]
 
 FULL_PROFILE_PERMISSIONS = [
@@ -19,21 +21,11 @@ FULL_PROFILE_PERMISSIONS = [
     'Can change synced event',
     'Can delete synced event',
     'Can view google calendar webhook',
-    'Can view clickup webhook',
     ]
 
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    # TODO Validate always starts with pk
-    clickup_pk = models.CharField(
-        blank=True,
-        max_length=255,
-        verbose_name='Clickup personal API key',
-        help_text='''Check <a
-            href=https://docs.clickup.com/en/articles/1367130-getting-started-with-the-clickup-api#personal-api-key>
-            how to find the personal API key</a>''',
-        )
     google_auth_token = models.CharField(
         blank=True, max_length=255, editable=False
         )
@@ -41,44 +33,44 @@ class Profile(models.Model):
         blank=True, max_length=255, editable=False
         )
     # google_auth_expiry = models.DateTimeField(blank=True, editable=False)
+    _google_calendar = None
 
     def __str__(self):
         return str(self.user)
 
     @property
     def google_calendar(self):
-        return GoogleCalendar(
-            token=self.google_auth_token,
-            refresh_token=self.google_auth_refresh_token
-            )
+        if self._google_calendar is None:
+            self._google_calendar = GoogleCalendar(
+                token=self.google_auth_token,
+                refresh_token=self.google_auth_refresh_token
+                )
+        return self._google_calendar
 
     @property
     def calendar_choices(self):
-        return [(c['id'], c['summary'])
-                for c in self.google_calendar.list_calendars()]
-
-    @property
-    def clickup(self):
-        return Clickup(token=self.clickup_pk)
+        choices = cache.get('cal-' + str(self))
+        if choices is None:
+            choices = [(c['id'], c['summary'])
+                       for c in self.google_calendar.list_calendars()]
+            cache.set('cal-' + str(self), choices, 600)
+        return choices
 
     @property
     def list_choices(self):
-        return [(l['id'], self.clickup.repr_list(l))
-                for l in self.clickup.list_lists()]
+        choices = []
+        for u in self.user.clickupuser_set.all():
+            u_choices = cache.get('lst-' + u.token)
+            if u_choices is None:
+                u_choices = u.list_choices
+                cache.set('lst-' + u.token, u_choices, 60)
+            choices += u_choices
+        return choices
 
     def save(self, *args, **kwargs):
         permissions = BASE_PROFILE_PERMISSIONS
-        if self.clickup_pk:
-            # TODO get webhooks
-            # try:
-            #     obj.google_calendar_webhook = GoogleCalendarWebhook.objects.get(
-            #         calendar_id=calendar_id,
-            #         )
-            # except GoogleCalendarWebhook.DoesNotExist:
-            #     obj.google_calendar_webhook = GoogleCalendarWebhook.create(
-            #         user=obj.user,
-            #         calendarId=calendar_id,
-            #         )
+        # Add full permissions if a clickup account has been linked
+        if self.user.clickupuser_set.exists():
             permissions = permissions + FULL_PROFILE_PERMISSIONS
         self.user.user_permissions.set(
             Permission.objects.filter(name__in=permissions)
@@ -88,7 +80,7 @@ class Profile(models.Model):
     def refresh_webhooks(self):
         for webhooks in [
             self.user.google_calendar_webhook_set,
-            self.user.clickup_webhook_set,
+            self.user.clickupuser_set,
             ]:
             for webhook in webhooks:
                 webhook.refresh()

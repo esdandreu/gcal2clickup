@@ -3,19 +3,21 @@ from typing import List
 from datetime import datetime
 
 import requests
+import logging
 import json
-# TODO method: mark sync, add tag "GoogleCalendar"
+
+logger = logging.getLogger(__name__)
 
 
 class Clickup:
+    def __init__(self, token):
+        self.token = token
+
     def url(self, path: str, version: int = 2):
         return self.base_url(version=version) + path
 
     def base_url(self, version: int = 2):
         return f'https://api.clickup.com/api/v{version}/'
-
-    def __init__(self, token):
-        self.token = token
 
     def request(self, method, url, version: int = 2, retry_count=0, **kwargs):
         headers = kwargs.pop('headers', {})
@@ -63,6 +65,10 @@ class Clickup:
     def delete(self, url, params=None):
         return self.request('DELETE', url, params=params)
 
+    @property
+    def user(self):
+        return self.get('user')['user']
+
     def list_teams(self):
         for team in self.get('team')['teams']:
             yield team
@@ -92,12 +98,12 @@ class Clickup:
                 yield _list
 
     def create_task(
-            self,
-            list_id: str,
-            start_date: datetime,
-            due_date: datetime,
-            all_day: bool = False,
-            **data
+        self,
+        list_id: str,
+        start_date: datetime,
+        due_date: datetime,
+        all_day: bool = False,
+        **data,
         ):
         data['start_date'] = start_date.timestamp() * 1000
         data['due_date'] = due_date.timestamp() * 1000
@@ -106,22 +112,21 @@ class Clickup:
         return self.post(f'list/{list_id}/task', data=data)
 
     def update_task(
-            self,
-            task_id: str,
-            start_date: datetime,
-            due_date: datetime,
-            all_day: bool = False,
-            **data
+        self,
+        task_id: str,
+        start_date: datetime,
+        due_date: datetime,
+        all_day: bool = False,
+        **data,
         ):
         data['start_date'] = start_date.timestamp() * 1000
         data['due_date'] = due_date.timestamp() * 1000
         data['start_date_time'] = not all_day
         data['due_date_time'] = not all_day
         return self.put(f'task/{task_id}', data=data)
-    
+
     def delete_task(self, task_id: str):
         return self.delete(f'task/{task_id}')
-
 
     @staticmethod
     def repr_list(l: dict) -> str:
@@ -130,9 +135,18 @@ class Clickup:
         else:
             folder = ""
         return f'{l["space"]["name"]}{folder} > {l["name"]}'
-    
-    def create_webhook(self):
+
+    def list_webhooks(self, teams=None):
+        if teams is None:
+            teams = self.list_teams()
+        for team in teams:
+            for webhook in self.get(f'team/{team["id"]}/webhook')['webhooks']:
+                yield webhook
+
+    def create_webhook(self, team):
         pass
+    
+
     # If due date is at 2:00:00 AM then it is the whole day
 
     # {

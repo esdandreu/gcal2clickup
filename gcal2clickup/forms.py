@@ -4,12 +4,12 @@ from gcal2clickup.models import Matcher
 
 class MatcherForm(forms.ModelForm):
     calendar_id = forms.ChoiceField(label='Calendar')
-    list_id = forms.ChoiceField(label='List')
+    clickup_list = forms.ChoiceField(label='List')
 
     class Meta:
         model = Matcher
         fields = [
-            'user', 'calendar_id', 'list_id', '_tags', '_name_regex',
+            'user', 'calendar_id', 'clickup_list', '_tags', '_name_regex',
             '_description_regex'
             ]
 
@@ -27,7 +27,7 @@ def matcher_form_factory(
     form.base_fields['calendar_id'].choices = calendar_choices
     if calendar_initial:
         form.base_fields['calendar_id'].initial = calendar_initial
-    form.base_fields['list_id'].choices = list_choices
+    form.base_fields['clickup_list'].choices = list_choices
     if list_initial:
-        form.base_fields['list_id'].initial = list_initial
+        form.base_fields['clickup_list'].initial = list_initial
     return form

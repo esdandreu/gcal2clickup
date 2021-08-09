@@ -9,10 +9,11 @@ from django.db.models.signals import pre_delete
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 from app.settings import DOMAIN
+from gcal2clickup.clickup import Clickup
 
-from sort_order_field import SortOrderField
 from datetime import datetime
 from markdownify import markdownify
+from sort_order_field import SortOrderField
 
 import logging
 import uuid
@@ -58,7 +59,9 @@ class GoogleCalendarWebhook(models.Model):
             id=channel_id,
             address=f'{DOMAIN}{reverse("google_calendar_endpoint")}',
             )
-        expiration = datetime.fromtimestamp(int(response['expiration']) / 1000)
+        expiration = make_aware(
+            datetime.fromtimestamp(int(response['expiration']) / 1000)
+            )
         return cls(
             user=user,
             calendar_id=calendarId,
@@ -123,19 +126,76 @@ def stop_google_calendar_webhook(sender, instance, **kwargs):
 
 
 class ClickupWebhook(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
     webhook_id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False
         )
 
-    # TODO create webhook on creation
+
+class ClickupUser(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    id = models.PositiveIntegerField(primary_key=True, editable=False)
+    # TODO Validate always starts with pk
+    token = models.CharField(
+        blank=True,
+        max_length=255,
+        verbose_name='Clickup personal API key',
+        help_text='''Check <a
+            href=https://docs.clickup.com/en/articles/1367130-getting-started-with-the-clickup-api#personal-api-key>
+            how to find the personal API key</a>''',
+        )
+    _api = None
+    _username = None
 
     # TODO delete webhook on delete
-            # address=f'{DOMAIN}{reverse("google_calendar_endpoint")}',
+    # address=f'{DOMAIN}{reverse("google_calendar_endpoint")}',
+
+    @property
+    def api(self):
+        if self._api is None:
+            self._api = Clickup(token=self.token)
+        return self._api
+
+    @property
+    def username(self):
+        if self._username is None:
+            self._username = self.api.user['username']
+        return self._username
+
+    @property
+    def list_choices(self):
+        return [(
+            str(self.pk) + ',' + l['id'],
+            self.username + ': ' + self.api.repr_list(l)
+            ) for l in self.api.list_lists()]
 
     def refresh(self):
         # TODO check if it is expired and create new if needed
         print(self.user)
+
+    def save(self, *args, **kwargs):
+        # Add the clickup user id
+        self.id = self.api.user['id']
+        super().save(*args, **kwargs)
+        # Check webhooks
+        endpoint = f'{DOMAIN}{reverse("clickup_endpoint")}'
+        teams = self.api.list_teams()
+        for team in teams:
+            webhooks = [
+                w for w in self.api.list_webhooks(teams=[team])
+                if w['endpoint'] == endpoint
+                ]
+            print(webhooks)
+            if not webhooks: # Create webhook
+                pass
+            elif len(webhooks) > 1: # Delete extra webhooks
+                pass
+        # Enforce permissions check by saving the user
+        self.user.save()
+
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        # Enforce permissions check by saving the user
+        self.user.save()
 
 
 class MatcherQuerySet(models.QuerySet):
@@ -157,6 +217,9 @@ class Matcher(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     google_calendar_webhook = models.ForeignKey(
         GoogleCalendarWebhook, on_delete=models.CASCADE, editable=False
+        )
+    clickup_user = models.ForeignKey(
+        ClickupUser, on_delete=models.CASCADE, editable=False
         )
     list_id = models.CharField(max_length=64, help_text=('Clickup list.'))
     _tags = models.CharField(
@@ -263,7 +326,7 @@ class Matcher(models.Model):
             data['markdown_description'] = markdownify(event['description'])
         (start_date, due_date, all_day) = \
             self.user.profile.google_calendar.event_bounds(event)
-        task = self.user.profile.clickup.create_task(
+        task = self.clickup_user.api.create_task(
             list_id=self.list_id,
             start_date=start_date,
             due_date=due_date,
@@ -317,7 +380,7 @@ class SyncedEvent(models.Model):
             self.sync_description = None
         (start_date, due_date, all_day) = \
             self.matcher.user.profile.google_calendar.event_bounds(event)
-        task = self.matcher.user.profile.clickup.update_task(
+        task = self.matcher.clickup_user.api.update_task(
             task_id=self.task_id,
             start_date=start_date,
             due_date=due_date,
@@ -329,9 +392,7 @@ class SyncedEvent(models.Model):
         return task
 
     def delete_task(self) -> dict:
-        return self.matcher.user.profile.clickup.delete_task(
-            task_id=self.task_id
-            )
+        return self.matcher.clickup_user.api.delete_task(task_id=self.task_id)
 
     def update_event(self, task=None):
         if task is None:

@@ -34,7 +34,7 @@ class GoogleCalendarWebhookAdmin(UserModelAdmin):
 
     @admin.action(
         description=
-        'Check the calendars through the related matchers for updated events'
+        'Check updated events'
         )
     def check_events(modeladmin, request, queryset):
         for obj in queryset:
@@ -53,6 +53,16 @@ class GoogleCalendarWebhookAdmin(UserModelAdmin):
 @admin.register(ClickupUser)
 class ClickupUserAdmin(UserModelAdmin):
     list_display = ['get_username']
+
+    @admin.action(description='Check webhooks')
+    def check_webhooks(modeladmin, request, queryset):
+        for obj in queryset:
+            (created, deleted) = obj.check_webhooks()
+            messages.add_message(
+                request, messages.INFO,
+                f'''{obj.username} clickup webhooks: {created} created, 
+                {deleted} deleted'''
+                )
 
     @admin.display(ordering='username', description='Username')
     def get_username(self, obj):
@@ -77,12 +87,11 @@ class MatcherAdmin(UserModelAdmin):
 
     @admin.action(
         description=
-        'Check the related google calendar webhooks for updated events'
+        'Check updated events'
         )
     def check_events(modeladmin, request, queryset):
-        # TODO queryset get different google_calendar_webhooks
-        for obj in queryset:
-            (created, updated) = obj.google_calendar_webhook.check_events()
+        for obj in queryset.google_calendar_webhooks:
+            (created, updated) = obj.check_events()
             messages.add_message(
                 request, messages.INFO,
                 f'''Checked {obj}: Created {created} synced events, 
@@ -128,8 +137,10 @@ class MatcherAdmin(UserModelAdmin):
                     user=obj.user,
                     calendarId=calendar_id,
                     )
-        webhook_id, obj.list_id = form.data['clickup_list'].split(',')
-        obj.clickup_user = ClickupUser.objects.get(pk=webhook_id)
+        print('Hello world')
+        clickup_user_pk, obj.list_id = form.data['clickup_list'].split(',')
+        obj.clickup_user = ClickupUser.objects.get(pk=clickup_user_pk)
+        print(obj.clickup_user)
         super().save_model(request, obj, form, change)
 
 

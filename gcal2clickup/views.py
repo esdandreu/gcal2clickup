@@ -39,7 +39,7 @@ def clickup_endpoint(request):
     try:
         clickup = ClickupUser.objects.get(pk=user_id).api
     except ClickupUser.DoesNotExist:
-        return HttpResponseForbidden()
+        return HttpResponse('Unauthorized', status=401)
     event = body['event']
     if event == 'taskCreated':
         pass
@@ -50,7 +50,7 @@ def clickup_endpoint(request):
     elif event == 'taskMoved':
         pass
     else:
-        return HttpResponseForbidden()
+        return HttpResponse('Unauthorized', status=401)
     # "taskCreated",
     #         "taskUpdated",
     #         "taskDeleted",

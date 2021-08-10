@@ -73,21 +73,21 @@ class Clickup:
         for team in self.get('team')['teams']:
             yield team
 
-    def list_spaces(self, teams: List[int] = None):
+    def list_spaces(self, teams: List[dict] = None):
         if teams is None:
             teams = self.list_teams()
         for team in teams:
             for space in self.get(f'team/{team["id"]}/space')['spaces']:
                 yield space
 
-    def list_folders(self, spaces=None):
+    def list_folders(self, spaces: List[dict] = None):
         if spaces is None:
             spaces = self.list_spaces()
         for space in spaces:
             for folder in self.get(f'space/{space["id"]}/folder')['folders']:
                 yield folder
 
-    def list_lists(self, spaces=None):
+    def list_lists(self, spaces: List[dict] = None):
         if spaces is None:
             spaces = self.list_spaces()
         for space in spaces:
@@ -136,25 +136,32 @@ class Clickup:
             folder = ""
         return f'{l["space"]["name"]}{folder} > {l["name"]}'
 
-    def list_webhooks(self, teams=None):
+    def list_webhooks(self, teams: List[str] = None):
         if teams is None:
             teams = self.list_teams()
         for team in teams:
             for webhook in self.get(f'team/{team["id"]}/webhook')['webhooks']:
                 yield webhook
 
-    def create_webhook(self, team):
-        pass
-    
+    DEFAULT_WEBHOOK_EVENTS = [
+        "taskCreated",
+        "taskUpdated",
+        "taskDeleted",
+        "taskMoved",
+        ]
 
-    # If due date is at 2:00:00 AM then it is the whole day
+    def create_webhook(
+        self,
+        team: dict,
+        endpoint: str,
+        events: List[str] = None,
+        **data,
+        ):
+        data['endpoint'] = endpoint
+        if events is None:
+            events = self.DEFAULT_WEBHOOK_EVENTS
+        data['events'] = events
+        return self.post(f'team/{team["id"]}/webhook', data)
 
-    # {
-    #     "endpoint": "https://gcal2clickup.herokuapp.com/api/clickup/",
-    #     "events": [
-    #         "taskCreated",
-    #         "taskUpdated",
-    #         "taskDeleted",
-    #         "taskMoved",
-    #     ]
-    # }
+    def delete_webhook(self, webhook: dict):
+        return self.delete(f'webhook/{webhook["id"]}')

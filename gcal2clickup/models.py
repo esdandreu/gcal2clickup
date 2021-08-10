@@ -19,6 +19,8 @@ import logging
 import uuid
 import re
 
+logger = logging.getLogger(__name__)
+
 
 class GoogleCalendarWebhook(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -131,6 +133,24 @@ class ClickupWebhook(models.Model):
         )
 
 
+class ClickupUserQuerySet(models.QuerySet):
+    def check_webhooks(self, *args, **kwargs) -> Tuple[int, int]:
+        created = 0
+        deleted = 0
+        for cu in self:
+            _created, _deleted = cu.check_webhooks(*args, **kwargs)
+            logger.info(
+                f'''{cu.username} clickup webhooks: {created} created, 
+                {deleted} deleted'''
+                )
+            created += _created
+            deleted += _deleted
+        return created, deleted
+
+class ClickupUserManager(models.Manager):
+    def get_queryset(self):
+        return ClickupUserQuerySet(self.model, using=self._db)
+
 class ClickupUser(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     id = models.PositiveIntegerField(primary_key=True, editable=False)
@@ -143,11 +163,12 @@ class ClickupUser(models.Model):
             href=https://docs.clickup.com/en/articles/1367130-getting-started-with-the-clickup-api#personal-api-key>
             how to find the personal API key</a>''',
         )
+    objects = ClickupUserManager()
     _api = None
     _username = None
 
-    # TODO delete webhook on delete
-    # address=f'{DOMAIN}{reverse("google_calendar_endpoint")}',
+    def __str__(self):
+        return self.username
 
     @property
     def api(self):
@@ -168,27 +189,37 @@ class ClickupUser(models.Model):
             self.username + ': ' + self.api.repr_list(l)
             ) for l in self.api.list_lists()]
 
-    def refresh(self):
-        # TODO check if it is expired and create new if needed
-        print(self.user)
+    def check_webhooks(self):
+        endpoint = f'{DOMAIN}{reverse("clickup_endpoint")}'
+        created = 0
+        deleted = 0
+        for team in self.api.list_teams():
+            active = None
+            to_delete = []
+            for w in self.api.list_webhooks(teams=[team]):
+                if w['endpoint'] == endpoint:
+                    if active is None and w['health']['status'] == 'active':
+                        active = w
+                    else:
+                        to_delete.append(w)
+            if active is None:  # Create webhook
+                self.api.create_webhook(team=team, endpoint=endpoint)
+                created += 1
+            for w in to_delete:  # Delete extra webhooks
+                self.api.delete_webhook(w)
+                deleted += 1
+        return created, deleted
 
     def save(self, *args, **kwargs):
         # Add the clickup user id
         self.id = self.api.user['id']
         super().save(*args, **kwargs)
         # Check webhooks
-        endpoint = f'{DOMAIN}{reverse("clickup_endpoint")}'
-        teams = self.api.list_teams()
-        for team in teams:
-            webhooks = [
-                w for w in self.api.list_webhooks(teams=[team])
-                if w['endpoint'] == endpoint
-                ]
-            print(webhooks)
-            if not webhooks: # Create webhook
-                pass
-            elif len(webhooks) > 1: # Delete extra webhooks
-                pass
+        created, deleted = self.check_webhooks()
+        logger.info(
+            f'''{self.username} clickup webhooks: {created} created, 
+            {deleted} deleted'''
+            )
         # Enforce permissions check by saving the user
         self.user.save()
 
@@ -205,7 +236,10 @@ class MatcherQuerySet(models.QuerySet):
             if match:
                 return match, matcher
         return None, None
-
+    
+    @property
+    def google_calendar_webhooks(self):
+        return set(m.google_calendar_webhook for m in self)
 
 class MatcherManager(models.Manager):
     def get_queryset(self):
@@ -317,7 +351,7 @@ class Matcher(models.Model):
         event: dict,
         match: re.Match = None,
         ) -> Tuple[dict, datetime, datetime]:
-        logging.debug(f'Creating task from event {event["summary"]}')
+        logger.debug(f'Creating task from event {event["summary"]}')
         data = {
             'name': event['summary'],
             'tags': ['google_calendar'] + self.tags,
@@ -340,7 +374,7 @@ class Matcher(models.Model):
         task: dict,
         match: re.Match = None,
         ) -> Tuple[dict, datetime, datetime]:
-        logging.debug(f'Creating event from task {task["name"]}')
+        logger.debug(f'Creating event from task {task["name"]}')
         raise NotImplementedError
 
 
@@ -369,7 +403,7 @@ class SyncedEvent(models.Model):
     def update_task(self, event: dict = None) -> dict:
         if event is None:
             event = self.event
-        logging.debug(f'Updating task from event {event["summary"]}')
+        logger.debug(f'Updating task from event {event["summary"]}')
         data = {'name': event['summary']}
         if self.sync_description is SYNC_GOOGLE_CALENDAR_DESCRIPTION:
             if 'description' in event:
@@ -398,7 +432,7 @@ class SyncedEvent(models.Model):
         if task is None:
             task = self.task
         print(task)
-        logging.debug(f'Updating event from task {task["name"]}')
+        logger.debug(f'Updating event from task {task["name"]}')
         raise NotImplementedError
 
     @classmethod

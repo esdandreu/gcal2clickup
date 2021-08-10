@@ -3,6 +3,7 @@ from django.http.response import HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 
 from gcal2clickup.models import GoogleCalendarWebhook, ClickupWebhook, SyncedEvent
+from app.settings import SYNCED_TASK_TAG
 
 import logging
 import json
@@ -36,31 +37,24 @@ def clickup_endpoint(request):
     print(request.body)
     body = json.loads(request.body)
     try:
-        clickup = ClickupWebhook.objects.get(pk=body['webhook_id']).api
+        webhook = ClickupWebhook.objects.get(pk=body['webhook_id'])
     except ClickupWebhook.DoesNotExist:
         return HttpResponse('Unauthorized', status=401)
     task_id = body['task_id']
+    event = body['event']
+    items = body['history_items']
     try:
         synced_event = SyncedEvent.objects.get(task_id=task_id)
+        if event == 'taskDeleted':
+            synced_event.delete(with_event=True)
+        else:
+            synced_event.update_event(items)
     except SyncedEvent.DoesNotExist:
-        synced_event = None
-    event = body['event']
-    # fields to watch out
-    # if the synced_event does not exists
-    # "tag" if "google_calendar" added create event
-    # if the synced_event exists
-    # "d"
-    if event == 'taskCreated':
-        # TODO does it have
-        pass
-    elif event == 'taskUpdated':
-        pass
-    elif event == 'taskDeleted':
-        # Delete event
-        pass
-    elif event == 'taskMoved':
-        pass
-    else:
-        return HttpResponse('Unauthorized', status=401)
+        # Was sync tag added?
+        if event != 'taskDeleted':
+            tags = [i for i in items if i['field'] == 'tag']
+            for tag in tags:
+                if tag['after']['name'] == SYNCED_TASK_TAG:
+                    webhook.check_task(task_id=webhook)
+                    break
     return HttpResponse('Hello wolrd')
-

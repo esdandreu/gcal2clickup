@@ -198,5 +198,8 @@ GOOGLE_OAUTH_AUTH_URI = "https://accounts.google.com/o/oauth2/auth"
 GOOGLE_OAUTH_REVOKE_URI = "https://accounts.google.com/o/oauth2/revoke"
 GOOGLE_OAUTH_TOKEN_URI = "https://accounts.google.com/o/oauth2/token"
 
+# Other settings
+SYNCED_TASK_TAG = 'google_calendar'
+
 # Activate Django-Heroku.
 django_heroku.settings(locals())

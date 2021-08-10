@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 from django.db.models.signals import pre_delete, post_delete
 
-from app.settings import DOMAIN
+from app.settings import DOMAIN, SYNCED_TASK_TAG
 from gcal2clickup.clickup import Clickup
 
 from datetime import datetime
@@ -101,8 +101,7 @@ class GoogleCalendarWebhook(models.Model):
             try:
                 synced_event = SyncedEvent.objects.get(event_id=event['id'])
                 if event['status'] == 'cancelled':
-                    synced_event.delete_task()
-                    synced_event.delete()
+                    synced_event.delete(with_task=True)
                     deleted += 1
                 else:
                     synced_event.update_task(event)
@@ -165,7 +164,11 @@ class ClickupWebhook(models.Model):
             clickup_user=clickup_user,
             team_id=team['id']
             )
-        
+
+    def check_task(self, task_id: str):
+        return self.clickup_user.check_task(task_id)
+
+
 @receiver(pre_delete, sender=ClickupWebhook)
 def delete_clickup_webhook(sender, instance, **kwargs):
     instance.clickup_user.api.delete_webhook({'id': instance.webhook_id})
@@ -181,6 +184,7 @@ class ClickupUserQuerySet(models.QuerySet):
                 )
             created += _created
         return created
+
 
 class ClickupUserManager(models.Manager):
     def get_queryset(self):
@@ -248,21 +252,34 @@ class ClickupUser(models.Model):
             webhook.delete()
         return created
 
+    def check_task(self, task_id: str):
+        task = self.api.get(f'task/{task_id}')
+        # Is task valid?
+        if not all([
+            SYNCED_TASK_TAG in task.get('tags', []),
+            task.get('due_date')
+            ]):
+            return False
+        match, matcher = self.matcher_set.order_by('order').match(task=task)
+        if match:
+            SyncedEvent.create(matcher, match, task=task).save()
+        return match
+
     def save(self, *args, **kwargs):
         # Add the clickup user id
         self.id = self.api.user['id']
         super().save(*args, **kwargs)
         # Check webhooks
         created = self.check_webhooks()
-        logger.info(
-            f'Created {created} clickup webhooks for {self.username}'
-            )
+        logger.info(f'Created {created} clickup webhooks for {self.username}')
         # Enforce permissions check by saving the user
         self.user.save()
+
 
 @receiver(post_delete, sender=ClickupUser)
 def refresh_user(sender, instance, **kwargs):
     instance.user.save()
+
 
 class MatcherQuerySet(models.QuerySet):
     def match(self, **kwargs) -> Tuple[re.Match, 'Matcher']:
@@ -379,8 +396,8 @@ class Matcher(models.Model):
                 match = self.description_regex.search(description)
         return match
 
-    def _match_task(self, task: dict) -> re.Match:
-        raise NotImplementedError
+    def _match_task(self, task: dict) -> bool:
+        return task.get('list', {}).get('id', None) == self.list_id
 
     def _create_task(
         self,
@@ -390,7 +407,7 @@ class Matcher(models.Model):
         logger.debug(f'Creating task from event {event["summary"]}')
         data = {
             'name': event['summary'],
-            'tags': ['google_calendar'] + self.tags,
+            'tags': [SYNCED_TASK_TAG] + self.tags,
             }
         if 'description' in event:
             data['markdown_description'] = markdownify(event['description'])
@@ -435,6 +452,10 @@ class SyncedEvent(models.Model):
             calendarId=self.matcher.google_calendar_webhook.calendar_id,
             eventId=self.event_id,
             ).execute()
+    
+    @property
+    def task(self):
+        return self.matcher.clickup_user.api.get(f'task/{self.task_id}')
 
     def update_task(self, event: dict = None) -> dict:
         if event is None:
@@ -461,14 +482,13 @@ class SyncedEvent(models.Model):
         self.end = due_date
         return task
 
-    def delete_task(self) -> dict:
-        return self.matcher.clickup_user.api.delete_task(task_id=self.task_id)
-
-    def update_event(self, task=None):
-        if task is None:
-            task = self.task
-        print(task)
-        logger.debug(f'Updating event from task {task["name"]}')
+    def update_event(self, task_items):
+        print(task_items)
+        # TODO name
+        # TODO description
+        # TODO start_date
+        # TODO due_date
+        # logger.debug(f'Updating event from task {task["name"]}')
         raise NotImplementedError
 
     @classmethod
@@ -498,3 +518,16 @@ class SyncedEvent(models.Model):
             end=end,
             sync_description=sync_description,
             )
+        
+    def delete_task(self) -> dict:
+        return self.matcher.clickup_user.api.delete_task(task_id=self.task_id)
+    
+    def delete_event(self) -> dict:
+        raise NotImplementedError
+
+    def delete(self, *args, with_task=False, with_event=False, **kwargs):
+        super().delete(*args, **kwargs)
+        if with_task:
+            self.delete_task()
+        if with_event:
+            self.delete_event()

@@ -92,7 +92,7 @@ class ClickupWebhookAdmin(admin.ModelAdmin):
     def get_clickup_user(self, obj):
         return obj.clickup_user
 
-    @admin.display(ordering='team', description='Team')
+    @admin.display(ordering='workspace', description='Workspace')
     def get_team(self, obj):
         return obj.team
 

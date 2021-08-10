@@ -5,9 +5,10 @@ from django.urls import reverse
 from django.dispatch import receiver
 from django.contrib.auth.models import User
 from django.utils.timezone import make_aware
-from django.db.models.signals import pre_delete
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
+from django.db.models.signals import pre_delete, post_delete
+
 from app.settings import DOMAIN
 from gcal2clickup.clickup import Clickup
 
@@ -131,25 +132,60 @@ class ClickupWebhook(models.Model):
     webhook_id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False
         )
+    clickup_user = models.ForeignKey('ClickupUser', on_delete=models.CASCADE)
+    team_id = models.PositiveIntegerField()
+    _team = None
+
+    @property
+    def team(self):
+        if self._team is None:
+            for team in self.clickup_user.api.list_teams():
+                if int(team['id']) == self.team_id:
+                    self._team = team['name']
+                    break
+            else:
+                self.delete()
+                return 'Deleted! Please refresh'
+        return self._team
+
+    @classmethod
+    def create(
+        cls,
+        clickup_user: 'ClickupUser',
+        team: dict,
+        endpoint: str = None,
+        ) -> 'ClickupWebhook':
+        if endpoint is None:
+            endpoint = f'{DOMAIN}{reverse("clickup_endpoint")}'
+        webhook_id = clickup_user.api.create_webhook(
+            team=team, endpoint=endpoint
+            )['id']
+        return cls(
+            webhook_id=webhook_id,
+            clickup_user=clickup_user,
+            team_id=team['id']
+            )
+        
+@receiver(pre_delete, sender=ClickupWebhook)
+def delete_clickup_webhook(sender, instance, **kwargs):
+    instance.clickup_user.api.delete_webhook({'id': instance.webhook_id})
 
 
 class ClickupUserQuerySet(models.QuerySet):
-    def check_webhooks(self, *args, **kwargs) -> Tuple[int, int]:
+    def check_webhooks(self, *args, **kwargs) -> int:
         created = 0
-        deleted = 0
         for cu in self:
-            _created, _deleted = cu.check_webhooks(*args, **kwargs)
+            _created = cu.check_webhooks(*args, **kwargs)
             logger.info(
-                f'''{cu.username} clickup webhooks: {created} created, 
-                {deleted} deleted'''
+                f'Created {created} clickup webhooks for {cu.username}'
                 )
             created += _created
-            deleted += _deleted
-        return created, deleted
+        return created
 
 class ClickupUserManager(models.Manager):
     def get_queryset(self):
         return ClickupUserQuerySet(self.model, using=self._db)
+
 
 class ClickupUser(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -189,45 +225,44 @@ class ClickupUser(models.Model):
             self.username + ': ' + self.api.repr_list(l)
             ) for l in self.api.list_lists()]
 
-    def check_webhooks(self):
-        endpoint = f'{DOMAIN}{reverse("clickup_endpoint")}'
+    def create_webhook(self, team: dict, endpoint: str = None):
+        return ClickupWebhook.create(
+            clickup_user=self, team=team, endpoint=endpoint
+            )
+
+    def check_webhooks(self) -> int:
         created = 0
-        deleted = 0
+        webhooks = ClickupWebhook.objects.filter(clickup_user=self)
+        # Ensure there is a webhook for every team
         for team in self.api.list_teams():
-            active = None
-            to_delete = []
-            for w in self.api.list_webhooks(teams=[team]):
-                if w['endpoint'] == endpoint:
-                    if active is None and w['health']['status'] == 'active':
-                        active = w
-                    else:
-                        to_delete.append(w)
-            if active is None:  # Create webhook
-                self.api.create_webhook(team=team, endpoint=endpoint)
+            try:
+                w = webhooks.get(team_id=team['id'])
+                print(webhooks)
+            except ClickupWebhook.DoesNotExist:
+                w = self.create_webhook(team=team)
+                w.save()
                 created += 1
-            for w in to_delete:  # Delete extra webhooks
-                self.api.delete_webhook(w)
-                deleted += 1
-        return created, deleted
+            webhooks = webhooks.exclude(pk=w.pk)
+        # Delete extra webhooks (not usual)
+        for webhook in webhooks:
+            webhook.delete()
+        return created
 
     def save(self, *args, **kwargs):
         # Add the clickup user id
         self.id = self.api.user['id']
         super().save(*args, **kwargs)
         # Check webhooks
-        created, deleted = self.check_webhooks()
+        created = self.check_webhooks()
         logger.info(
-            f'''{self.username} clickup webhooks: {created} created, 
-            {deleted} deleted'''
+            f'Created {created} clickup webhooks for {self.username}'
             )
         # Enforce permissions check by saving the user
         self.user.save()
 
-    def delete(self, *args, **kwargs):
-        super().delete(*args, **kwargs)
-        # Enforce permissions check by saving the user
-        self.user.save()
-
+@receiver(post_delete, sender=ClickupUser)
+def refresh_user(sender, instance, **kwargs):
+    instance.user.save()
 
 class MatcherQuerySet(models.QuerySet):
     def match(self, **kwargs) -> Tuple[re.Match, 'Matcher']:
@@ -236,10 +271,11 @@ class MatcherQuerySet(models.QuerySet):
             if match:
                 return match, matcher
         return None, None
-    
+
     @property
     def google_calendar_webhooks(self):
         return set(m.google_calendar_webhook for m in self)
+
 
 class MatcherManager(models.Manager):
     def get_queryset(self):

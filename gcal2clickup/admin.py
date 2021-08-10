@@ -3,7 +3,7 @@ from django.contrib import messages
 
 from gcal2clickup.forms import matcher_form_factory
 from gcal2clickup.models import (
-    Matcher, GoogleCalendarWebhook, ClickupUser, SyncedEvent
+    ClickupWebhook, Matcher, GoogleCalendarWebhook, ClickupUser, SyncedEvent
     )
 
 
@@ -32,10 +32,7 @@ class GoogleCalendarWebhookAdmin(UserModelAdmin):
     actions = ['check_events', 'delete_selected']
     readonly_fields = ['checked_at']
 
-    @admin.action(
-        description=
-        'Check updated events'
-        )
+    @admin.action(description='Check updated events')
     def check_events(modeladmin, request, queryset):
         for obj in queryset:
             created, updated = obj.check_events()
@@ -53,15 +50,15 @@ class GoogleCalendarWebhookAdmin(UserModelAdmin):
 @admin.register(ClickupUser)
 class ClickupUserAdmin(UserModelAdmin):
     list_display = ['get_username']
+    actions = ['check_webhooks', 'delete_selected']
 
     @admin.action(description='Check webhooks')
     def check_webhooks(modeladmin, request, queryset):
         for obj in queryset:
-            (created, deleted) = obj.check_webhooks()
+            created = obj.check_webhooks()
             messages.add_message(
                 request, messages.INFO,
-                f'''{obj.username} clickup webhooks: {created} created, 
-                {deleted} deleted'''
+                f'Created {created} clickup webhooks for {obj.username}'
                 )
 
     @admin.display(ordering='username', description='Username')
@@ -77,6 +74,37 @@ class ClickupUserAdmin(UserModelAdmin):
         return form
 
 
+@admin.register(ClickupWebhook)
+class ClickupWebhookAdmin(admin.ModelAdmin):
+    list_display = ['get_clickup_user', 'get_team']
+
+    def get_list_display(self, request):
+        # Add user if superuser
+        if request.user.is_superuser:
+            return ['get_user'] + self.list_display
+        return self.list_display
+
+    @admin.display(ordering='user', description='User')
+    def get_user(self, obj):
+        return obj.clickup_user.user.username
+
+    @admin.display(ordering='clickup_user', description='Clickup User')
+    def get_clickup_user(self, obj):
+        return obj.clickup_user
+
+    @admin.display(ordering='team', description='Team')
+    def get_team(self, obj):
+        return obj.team
+
+    def get_queryset(self, request):
+        # Restrict to user
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return self.model.objects.filter(clickup_user__user=request.user
+                                         ) or qs.none()
+
+
 @admin.register(Matcher)
 class MatcherAdmin(UserModelAdmin):
     list_display = [
@@ -85,10 +113,7 @@ class MatcherAdmin(UserModelAdmin):
         ]
     actions = ['check_events', 'delete_selected']
 
-    @admin.action(
-        description=
-        'Check updated events'
-        )
+    @admin.action(description='Check updated events')
     def check_events(modeladmin, request, queryset):
         for obj in queryset.google_calendar_webhooks:
             (created, updated) = obj.check_events()

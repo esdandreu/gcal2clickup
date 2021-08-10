@@ -2,7 +2,7 @@ from django.http import HttpResponse
 from django.http.response import HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 
-from gcal2clickup.models import GoogleCalendarWebhook, ClickupUser
+from gcal2clickup.models import GoogleCalendarWebhook, ClickupWebhook, SyncedEvent
 
 import logging
 import json
@@ -35,25 +35,32 @@ def clickup_endpoint(request):
     print('CLICKUP!')
     print(request.body)
     body = json.loads(request.body)
-    user_id = body['history_items']['user']['id']
     try:
-        clickup = ClickupUser.objects.get(pk=user_id).api
-    except ClickupUser.DoesNotExist:
+        clickup = ClickupWebhook.objects.get(pk=body['webhook_id']).api
+    except ClickupWebhook.DoesNotExist:
         return HttpResponse('Unauthorized', status=401)
+    task_id = body['task_id']
+    try:
+        synced_event = SyncedEvent.objects.get(task_id=task_id)
+    except SyncedEvent.DoesNotExist:
+        synced_event = None
     event = body['event']
+    # fields to watch out
+    # if the synced_event does not exists
+    # "tag" if "google_calendar" added create event
+    # if the synced_event exists
+    # "d"
     if event == 'taskCreated':
+        # TODO does it have
         pass
     elif event == 'taskUpdated':
         pass
     elif event == 'taskDeleted':
+        # Delete event
         pass
     elif event == 'taskMoved':
         pass
     else:
         return HttpResponse('Unauthorized', status=401)
-    # "taskCreated",
-    #         "taskUpdated",
-    #         "taskDeleted",
-    #         "taskMoved",
     return HttpResponse('Hello wolrd')
 

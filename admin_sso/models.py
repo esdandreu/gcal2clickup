@@ -21,6 +21,7 @@ FULL_PROFILE_PERMISSIONS = [
     'Can change synced event',
     'Can delete synced event',
     'Can view google calendar webhook',
+    'Can view clickup webhook',
     ]
 
 

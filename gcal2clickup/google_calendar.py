@@ -56,7 +56,7 @@ class GoogleCalendar:
     @staticmethod
     def parse_event_time(t: datetime):
         if isinstance(t, datetime):
-            return {'dateTime': t.isoformat('T')}
+            return {'dateTime': t.isoformat('T') + 'Z'}
         elif isinstance(t, date):
             return {'date': t.strftime('%Y-%m-%d')}
 
@@ -68,7 +68,7 @@ class GoogleCalendar:
         start_time: datetime,
         description: str = None,
         ):
-        body={
+        body = {
             'summary': summary,
             'end': self.parse_event_time(end_time),
             'start': self.parse_event_time(start_time),

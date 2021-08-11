@@ -453,6 +453,7 @@ class Matcher(models.Model):
         end_time = datetime.fromtimestamp(int(task['due_date']) / 1000)
         end_time = pytz.utc.localize(end_time)
         if end_time.time() == DATE_ONLY_TIME:
+            print('Heelo end')
             end_time = end_time.date()
         if not task.get('start_date', None):
             start_time = end_time
@@ -460,6 +461,7 @@ class Matcher(models.Model):
             start_time = datetime.fromtimestamp(int(task['start_date']) / 1000)
             start_time = pytz.utc.localize(start_time)
             if isinstance(end_time, date):
+                print('Heelo start')
                 start_time = start_time.date()
         kwargs = {}
         if task['description']:
@@ -598,6 +600,7 @@ class SyncedEvent(models.Model):
         except Exception as error:
             # pass exceptions about team not authorized, this means that the
             # task is already deleted
+            print(error)
             if 'Team not authorized' not in str(error):
                 raise error
 

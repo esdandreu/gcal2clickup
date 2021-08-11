@@ -42,7 +42,7 @@ def clickup_endpoint(request):
         return HttpResponse('Unauthorized', status=401)
     task_id = body['task_id']
     event = body['event']
-    items = body['history_items']
+    items = body.get('history_items', [])
     try:
         synced_event = SyncedEvent.objects.get(task_id=task_id)
         if event == 'taskDeleted':

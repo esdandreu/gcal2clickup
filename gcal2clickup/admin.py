@@ -3,7 +3,7 @@ from django.contrib import messages
 
 from gcal2clickup.forms import matcher_form_factory
 from gcal2clickup.models import (
-    ClickupWebhook, Matcher, GoogleCalendarWebhook, ClickupUser, SyncedEvent
+    ClickupWebhook, Matcher, GoogleCalendarWebhook, ClickupUser, SyncedEvent, SYNC_GOOGLE_CALENDAR_DESCRIPTION, SYNC_CLICKUP_DESCRIPTION
     )
 
 
@@ -129,7 +129,7 @@ class MatcherAdmin(UserModelAdmin):
 
     @admin.display(ordering='list', description='List')
     def get_list(self, obj):
-        return obj.clickup_list[1]
+        return obj.clickup_list
 
     @admin.display(ordering='checked_at', description='Checked at')
     def get_checked_at(self, obj):
@@ -173,7 +173,7 @@ class MatcherAdmin(UserModelAdmin):
 
 @admin.register(SyncedEvent)
 class SyncedEventAdmin(admin.ModelAdmin):
-    list_display = ['task_id', 'event_id', 'start', 'end']
+    list_display = ['task_id', 'event_id', 'get_sync', 'start', 'end']
     ordering = ['start', 'end']
 
     def get_queryset(self, request):
@@ -182,3 +182,11 @@ class SyncedEventAdmin(admin.ModelAdmin):
             return qs
         return SyncedEvent.objects.filter(matcher__user=request.user
                                           ) or qs.none()
+
+    @admin.display(ordering='sync_description', description='Sync Description')
+    def get_sync(self, obj):
+        if obj.sync_description is SYNC_GOOGLE_CALENDAR_DESCRIPTION:
+            return 'Google Calendar -> Clickup'
+        elif obj.sync_description is SYNC_CLICKUP_DESCRIPTION:
+            return 'Clickup -> Google Calendar'
+        return 'No'

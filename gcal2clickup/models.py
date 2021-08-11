@@ -570,7 +570,7 @@ class SyncedEvent(models.Model):
                     else:
                         kwargs['start_time'] = date
             elif field == 'tag_removed':  # Check sync tag removed
-                for tag in i.get('after', []):
+                for tag in i.get('after', None ) or []:
                     if tag['name'] == SYNCED_TASK_TAG:
                         break
                 else:

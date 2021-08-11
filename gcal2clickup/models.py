@@ -543,14 +543,15 @@ class SyncedEvent(models.Model):
                     self.sync_description = None
             elif field in ['due_date', 'start_date']:
                 # * This is UTC
-                date = datetime.fromtimestamp(int(i['after']) / 1000)
-                date = pytz.utc.localize(date)
-                if i['data'][f'{field}_time']:
-                    date = date.date()
-                if field == 'due_date':
-                    kwargs['end_time'] = date
-                else:
-                    kwargs['start_time'] = date
+                if i['after']:
+                    date = datetime.fromtimestamp(int(i['after']) / 1000)
+                    date = pytz.utc.localize(date)
+                    if i['data'][f'{field}_time']:
+                        date = date.date()
+                    if field == 'due_date':
+                        kwargs['end_time'] = date
+                    else:
+                        kwargs['start_time'] = date
         if kwargs:
             if ( # Take care of one day tasks that only have due_date
                 'end_time' in kwargs and 'start_time' not in kwargs

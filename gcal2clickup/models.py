@@ -594,7 +594,13 @@ class SyncedEvent(models.Model):
             )
 
     def delete_task(self) -> dict:
-        return self.matcher.clickup_user.api.delete_task(task_id=self.task_id)
+        try:
+            return self.matcher.clickup_user.api.delete_task(task_id=self.task_id)
+        except Exception as error:
+            # pass exceptions about team not authorized, this means that the
+            # task is already deleted
+            if 'Team not authorized' not in str(error):
+                raise error
 
     def delete_event(self) -> dict:
         return self.matcher.user.profile.google_calendar.events.delete(

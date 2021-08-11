@@ -51,10 +51,6 @@ def clickup_endpoint(request):
             synced_event.update_event(items)
     except SyncedEvent.DoesNotExist:
         # Was sync tag added?
-        if event != 'taskDeleted':
-            tags = [i for i in items if i['field'] == 'tag']
-            for tag in tags:
-                if tag['after']['name'] == SYNCED_TASK_TAG:
-                    webhook.check_task(task_id=webhook)
-                    break
+        if event != 'taskDeleted' and ClickupWebhook.is_sync_tag_added(items):
+            webhook.check_task(task_id=webhook)
     return HttpResponse('Hello wolrd')

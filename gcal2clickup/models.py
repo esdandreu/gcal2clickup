@@ -20,7 +20,7 @@ import logging
 import uuid
 import re
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('django')
 
 
 class GoogleCalendarWebhook(models.Model):
@@ -167,6 +167,16 @@ class ClickupWebhook(models.Model):
 
     def check_task(self, task_id: str):
         return self.clickup_user.check_task(task_id)
+    
+    @staticmethod
+    def is_sync_tag_added(history_items: list) -> bool:
+        for i in history_items:
+            if i['field'] == 'tag':
+                for tag in i['after']:
+                    if tag['name'] == SYNCED_TASK_TAG:
+                        return True
+        return False
+                
 
 
 @receiver(pre_delete, sender=ClickupWebhook)
@@ -241,7 +251,6 @@ class ClickupUser(models.Model):
         for team in self.api.list_teams():
             try:
                 w = webhooks.get(team_id=team['id'])
-                print(webhooks)
             except ClickupWebhook.DoesNotExist:
                 w = self.create_webhook(team=team)
                 w.save()
@@ -452,7 +461,7 @@ class SyncedEvent(models.Model):
             calendarId=self.matcher.google_calendar_webhook.calendar_id,
             eventId=self.event_id,
             ).execute()
-    
+
     @property
     def task(self):
         return self.matcher.clickup_user.api.get(f'task/{self.task_id}')
@@ -518,12 +527,14 @@ class SyncedEvent(models.Model):
             end=end,
             sync_description=sync_description,
             )
-        
+
     def delete_task(self) -> dict:
         return self.matcher.clickup_user.api.delete_task(task_id=self.task_id)
-    
+
     def delete_event(self) -> dict:
-        raise NotImplementedError
+        return self.matcher.user.profile.google_calendar.events.delete(
+            calendarId=self.matcher.calendar_id, eventId=self.event_id
+            ).execute()
 
     def delete(self, *args, with_task=False, with_event=False, **kwargs):
         super().delete(*args, **kwargs)

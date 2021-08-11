@@ -162,10 +162,8 @@ class MatcherAdmin(UserModelAdmin):
                     user=obj.user,
                     calendarId=calendar_id,
                     )
-        print('Hello world')
         clickup_user_pk, obj.list_id = form.data['clickup_list'].split(',')
         obj.clickup_user = ClickupUser.objects.get(pk=clickup_user_pk)
-        print(obj.clickup_user)
         super().save_model(request, obj, form, change)
 
 

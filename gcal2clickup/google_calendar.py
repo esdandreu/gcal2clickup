@@ -6,7 +6,6 @@ from googleapiclient.discovery import build
 from app import settings
 
 
-
 class GoogleCalendar:
     def __init__(self, token, refresh_token):
         credentials = Credentials(
@@ -48,12 +47,21 @@ class GoogleCalendar:
         while nextPageToken:
             if isinstance(nextPageToken, str):
                 kwargs['pageToken'] = nextPageToken
-            response = self.events.list(
-                calendarId=calendarId, **kwargs
-                ).execute()
+            response = self.events.list(calendarId=calendarId,
+                                        **kwargs).execute()
             nextPageToken = response.get('nextPageToken', None)
             for event in response['items']:
                 yield event
+
+    def create_event(
+        self,
+        calendarId,
+        summary,
+        end_time,
+        start_time,
+        description: str = None,
+        ):
+        raise NotImplementedError
 
     def add_events_watch(self, calendarId, id, address, ttl=604800):
         return self.events.watch(

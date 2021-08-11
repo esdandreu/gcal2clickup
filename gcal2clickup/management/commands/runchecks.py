@@ -3,6 +3,9 @@ from django.core.management.base import BaseCommand, CommandError
 from gcal2clickup.models import ClickupUser, ClickupWebhook, GoogleCalendarWebhook, SyncedEvent
 from app.settings import DOMAIN
 
+import logging
+
+logger = logging.getLogger('django')
 
 class Command(BaseCommand):
     def handle(self, *args, **options):
@@ -23,7 +26,8 @@ class Command(BaseCommand):
                         except ClickupWebhook.DoesNotExist:
                             cu.api.delete_webhook(w)
                             deleted += 1
-            print(f'Deleted {deleted} clickup webhooks from {cu.username}')
+            logger.info(f'Deleted {deleted} clickup webhooks from {cu.username}')
+            cu.save()
 
         # TODO create and assign GoogleCalendarWebhooks about to expire
         # TODO delete not related GoogleCalendarWebhooks

@@ -266,13 +266,16 @@ class ClickupUser(models.Model):
         return created
 
     def check_task(self, task_id: str) -> bool:
+        print('Check task!')
         task = self.api.get(f'task/{task_id}')
+        print(task)
         # Is task valid?
         if all([SYNCED_TASK_TAG in task.get('tags', []),
                 task.get('due_date')]):
             match, matcher = self.matcher_set.order_by('order').match(
                 task=task
                 )
+            print(match)
             if match:
                 SyncedEvent.create(matcher, match, task=task).save()
                 return True
@@ -531,6 +534,7 @@ class SyncedEvent(models.Model):
                 else:
                     self.sync_description = None
             elif field in ['due_date', 'start_date']:
+                # TODO If due date is updated but start date is null...
                 # * This is UTC
                 date = datetime.fromtimestamp(int(i['after']) / 1000)
                 date = pytz.utc.localize(date)
@@ -540,11 +544,13 @@ class SyncedEvent(models.Model):
                     kwargs['end_date'] = date
                 else:
                     kwargs['start_date'] = date
-        return self.matcher.user.profile.google_calendar.update_event(
-            calendarId=self.matcher.calendar_id,
-            eventId=self.event_id,
-            **kwargs,
-            )
+        if kwargs:
+            return self.matcher.user.profile.google_calendar.update_event(
+                calendarId=self.matcher.calendar_id,
+                eventId=self.event_id,
+                **kwargs,
+                )
+        return False
 
     @classmethod
     def create(cls, matcher, match, *, event=None, task=None) -> 'SyncedEvent':

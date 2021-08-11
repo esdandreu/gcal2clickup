@@ -567,9 +567,22 @@ class SyncedEvent(models.Model):
                         kwargs['end_time'] = date
                     else:
                         kwargs['start_time'] = date
+            elif field == 'tag_removed': # Check sync tag removed
+                for tag in i['after']:
+                    if tag['name'] == SYNCED_TASK_TAG:
+                        break
+                else:
+                    return self.delete(with_event=True)
         if kwargs:
             print(kwargs)
-            if ( # Take care of one day tasks that only have due_date
+            if (
+                'end_time' in kwargs and kwargs['end_time']
+                == kwargs.get('start_time', kwargs['end_time'])
+                ):
+                print('It is one day only')
+                kwargs['end_time'] = kwargs['end_time'].date()
+                kwargs['start_time'] = kwargs['end_time']
+            elif ( # Take care of one day tasks that only have due_date
                 'end_time' in kwargs and 'start_time' not in kwargs
                 and self.start == self.end
                 ):

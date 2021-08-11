@@ -10,9 +10,9 @@ from django.utils.translation import ugettext_lazy as _
 from django.db.models.signals import pre_delete, post_delete
 
 from app.settings import DOMAIN, SYNCED_TASK_TAG
-from gcal2clickup.clickup import Clickup
+from gcal2clickup.clickup import Clickup, DATE_ONLY_TIME
 
-from datetime import datetime
+from datetime import datetime, date
 from markdownify import markdownify
 from sort_order_field import SortOrderField
 
@@ -266,9 +266,7 @@ class ClickupUser(models.Model):
         return created
 
     def check_task(self, task_id: str) -> bool:
-        print('Check task!')
         task = self.api.get(f'task/{task_id}')
-        print(task)
         # Is task valid?
         if all([
             SYNCED_TASK_TAG in [t['name'] for t in task.get('tags', [])],
@@ -277,7 +275,6 @@ class ClickupUser(models.Model):
             match, matcher = self.matcher_set.order_by('order').match(
                 task=task
                 )
-            print(match)
             if match:
                 SyncedEvent.create(matcher, match, task=task).save()
                 return True
@@ -456,12 +453,16 @@ class Matcher(models.Model):
         end_time = datetime.fromtimestamp(int(task['due_date']) / 1000)
         end_time = pytz.utc.localize(end_time)
         print(end_time.time())
-        # if end_date.
+        if end_time == DATE_ONLY_TIME:
+            print('Should be a date not a time')
+            end_time = end_time.date()
         if not task.get('start_date', None):
             start_time = end_time
         else:
             start_time = datetime.fromtimestamp(int(task['start_date']) / 1000)
             start_time = pytz.utc.localize(start_time)
+            if isinstance(end_time, date):
+                start_time = start_time.date()
         kwargs = {}
         if task['description']:
             kwargs['description'] = task['description']

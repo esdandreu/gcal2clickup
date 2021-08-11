@@ -1,6 +1,6 @@
 from typing import List
 
-from datetime import datetime
+from datetime import datetime, time
 
 import requests
 import logging
@@ -8,6 +8,7 @@ import json
 
 logger = logging.getLogger('django')
 
+DATE_ONLY_TIME = time(hour=2, minute=0, second=0)
 
 class Clickup:
     def __init__(self, token):

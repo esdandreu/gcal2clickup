@@ -1,5 +1,5 @@
 from typing import Tuple
-from datetime import datetime
+from datetime import datetime, date
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -55,12 +55,28 @@ class GoogleCalendar:
 
     def create_event(
         self,
-        calendarId,
-        summary,
-        end_time,
-        start_time,
+        calendarId: str,
+        summary: str,
+        end_time: datetime,
+        start_time: datetime,
         description: str = None,
         ):
+        raise NotImplementedError
+    
+    def update_event(
+        self,
+        calendarId: str,
+        eventId: str,
+        summary: str = None,
+        end_time: datetime = None,
+        start_time: datetime = None,
+        description: str = None,
+        ):
+        body = {}
+        if isinstance(end_time, datetime):
+            body['end'] = {'dateTime': end_time.isoformat('T')}
+        elif isinstance(end_time, datetime):
+            body['end'] = {'date': end_time.strftime("yyyy-mm-dd")}
         raise NotImplementedError
 
     def add_events_watch(self, calendarId, id, address, ttl=604800):

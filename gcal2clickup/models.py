@@ -18,6 +18,7 @@ from sort_order_field import SortOrderField
 
 import logging
 import uuid
+import pytz
 import re
 
 logger = logging.getLogger('django')
@@ -167,7 +168,7 @@ class ClickupWebhook(models.Model):
 
     def check_task(self, task_id: str):
         return self.clickup_user.check_task(task_id)
-    
+
     @staticmethod
     def is_sync_tag_added(history_items: list) -> bool:
         for i in history_items:
@@ -176,7 +177,6 @@ class ClickupWebhook(models.Model):
                     if tag['name'] == SYNCED_TASK_TAG:
                         return True
         return False
-                
 
 
 @receiver(pre_delete, sender=ClickupWebhook)
@@ -261,7 +261,7 @@ class ClickupUser(models.Model):
             webhook.delete()
         return created
 
-    def check_task(self, task_id: str):
+    def check_task(self, task_id: str) -> bool:
         task = self.api.get(f'task/{task_id}')
         # Is task valid?
         if not all([
@@ -437,6 +437,7 @@ class Matcher(models.Model):
         match: re.Match = None,
         ) -> Tuple[dict, datetime, datetime]:
         logger.debug(f'Creating event from task {task["name"]}')
+        print(task)
         raise NotImplementedError
 
 
@@ -491,14 +492,33 @@ class SyncedEvent(models.Model):
         self.end = due_date
         return task
 
-    def update_event(self, task_items):
-        print(task_items)
-        # TODO name
-        # TODO description
-        # TODO start_date
-        # TODO due_date
-        # logger.debug(f'Updating event from task {task["name"]}')
-        raise NotImplementedError
+    def update_event(self, history_items: list):
+        print(history_items)
+        kwargs = {}
+        for i in history_items:
+            field = i['field']
+            if field == 'name':
+                kwargs['summary'] = i['after']
+            elif field == 'description':
+                if self.sync_description is SYNC_CLICKUP_DESCRIPTION:
+                    raise NotImplementedError
+                else:
+                    self.sync_description = None
+            elif field in ['due_date', 'start_date']:
+                # * This is UTC
+                date = datetime.fromtimestamp(int(i['after']) / 1000)
+                date = pytz.utc.localize(date)
+                if i['data'][f'{field}_time']:
+                    date = date.date()
+                if field == 'due_date':
+                    kwargs['end_date'] = date
+                else:
+                    kwargs['start_date'] = date
+        return self.matcher.user.profile.google_calendar.update_event(
+            calendarId=self.matcher.calendar_id,
+            eventId=self.event_id,
+            **kwargs,
+        )
 
     @classmethod
     def create(cls, matcher, match, *, event=None, task=None) -> 'SyncedEvent':

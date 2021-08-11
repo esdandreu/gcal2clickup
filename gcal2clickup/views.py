@@ -3,11 +3,11 @@ from django.http.response import HttpResponseForbidden
 from django.views.decorators.csrf import csrf_exempt
 
 from gcal2clickup.models import GoogleCalendarWebhook, ClickupWebhook, SyncedEvent
-from app.settings import SYNCED_TASK_TAG
 
 import logging
 import json
 
+logger = logging.getLogger('django')
 
 @csrf_exempt
 def google_calendar_endpoint(request):
@@ -21,7 +21,7 @@ def google_calendar_endpoint(request):
                 )
         except GoogleCalendarWebhook.DoesNotExist:
             # ? Try to stop the webhook?
-            logging.warning(
+            logger.warning(
                 f'Google Calendar notification not recognized: '
                 f'{request.headers}'
                 )
@@ -49,8 +49,14 @@ def clickup_endpoint(request):
             synced_event.delete(with_event=True)
         else:
             synced_event.update_event(items)
+            synced_event.save()
     except SyncedEvent.DoesNotExist:
         # Was sync tag added?
-        if event != 'taskDeleted' and ClickupWebhook.is_sync_tag_added(items):
-            webhook.check_task(task_id=webhook)
-    return HttpResponse('Hello wolrd')
+        if event != 'taskDeleted':
+            if ClickupWebhook.is_sync_tag_added(items):
+                webhook.check_task(task_id=webhook)
+            else:
+                # TODO remove sync tag
+                print('Should remove tag')
+                pass
+    return HttpResponse(status=200)

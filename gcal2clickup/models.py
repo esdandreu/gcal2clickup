@@ -453,7 +453,8 @@ class Matcher(models.Model):
         end_time = datetime.fromtimestamp(int(task['due_date']) / 1000)
         end_time = pytz.utc.localize(end_time)
         print(end_time.time())
-        if end_time == DATE_ONLY_TIME:
+        print(DATE_ONLY_TIME)
+        if end_time.time() == DATE_ONLY_TIME:
             print('Should be a date not a time')
             end_time = end_time.date()
         if not task.get('start_date', None):

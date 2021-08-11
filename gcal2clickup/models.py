@@ -452,6 +452,7 @@ class Matcher(models.Model):
         # Tasks must have due_date to be valid
         end_time = datetime.fromtimestamp(int(task['due_date']) / 1000)
         end_time = pytz.utc.localize(end_time)
+        print(end_time.time())
         if end_time.time() == DATE_ONLY_TIME:
             print('Heelo end')
             end_time = end_time.date()
@@ -460,7 +461,7 @@ class Matcher(models.Model):
         else:
             start_time = datetime.fromtimestamp(int(task['start_date']) / 1000)
             start_time = pytz.utc.localize(start_time)
-            if isinstance(end_time, date):
+            if type(end_time) == date:
                 print('Heelo start')
                 start_time = start_time.date()
         kwargs = {}

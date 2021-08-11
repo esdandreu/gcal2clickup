@@ -55,9 +55,9 @@ class GoogleCalendar:
 
     @staticmethod
     def parse_event_time(t: datetime):
-        if isinstance(t, datetime):
+        if type(t) == datetime:
             return {'dateTime': t.isoformat('T') + 'Z'}
-        elif isinstance(t, date):
+        elif type(t) == date:
             return {'date': t.strftime('%Y-%m-%d')}
 
     def create_event(

@@ -243,7 +243,7 @@ class ClickupUser(models.Model):
         return ClickupWebhook.create(
             clickup_user=self, team=team, endpoint=endpoint
             )
-        
+
     def remove_sync_tag(self, task_id: str):
         logger.debug(f'Removing sync tag from {task_id}')
         return self.api.delete(f'task/{task_id}/tag/{SYNCED_TASK_TAG}')
@@ -270,8 +270,10 @@ class ClickupUser(models.Model):
         task = self.api.get(f'task/{task_id}')
         print(task)
         # Is task valid?
-        if all([SYNCED_TASK_TAG in task.get('tags', []),
-                task.get('due_date')]):
+        if all([
+            SYNCED_TASK_TAG in [t['name'] for t in task.get('tags', [])],
+            task.get('due_date', None)
+            ]):
             match, matcher = self.matcher_set.order_by('order').match(
                 task=task
                 )
@@ -450,8 +452,10 @@ class Matcher(models.Model):
         ) -> Tuple[dict, datetime, datetime]:
         logger.debug(f'Creating event from task {task["name"]}')
         print(task)
+        # Tasks must have due_date to be valid
         end_time = datetime.fromtimestamp(int(task['due_date']) / 1000)
         end_time = pytz.utc.localize(end_time)
+        print(end_time.time())
         # if end_date.
         if not task.get('start_date', None):
             start_time = end_time
@@ -461,13 +465,15 @@ class Matcher(models.Model):
         kwargs = {}
         if task['description']:
             kwargs['description'] = task['description']
-        return self.user.profile.google_calendar.create_event(
+        event = self.user.profile.google_calendar.create_event(
             calendarId=self.calendar_id,
             summary=task['name'],
             end_time=end_time,
             start_time=start_time,
             **kwargs,
             )
+        print(event)
+        return event, start_time, end_time
 
 
 # Constants for the sync_description field
@@ -534,17 +540,21 @@ class SyncedEvent(models.Model):
                 else:
                     self.sync_description = None
             elif field in ['due_date', 'start_date']:
-                # TODO If due date is updated but start date is null...
                 # * This is UTC
                 date = datetime.fromtimestamp(int(i['after']) / 1000)
                 date = pytz.utc.localize(date)
                 if i['data'][f'{field}_time']:
                     date = date.date()
                 if field == 'due_date':
-                    kwargs['end_date'] = date
+                    kwargs['end_time'] = date
                 else:
-                    kwargs['start_date'] = date
+                    kwargs['start_time'] = date
         if kwargs:
+            if ( # Take care of one day tasks that only have due_date
+                'end_time' in kwargs and 'start_time' not in kwargs
+                and self.start == self.end
+                ):
+                kwargs['start_time'] = kwargs['end_time']
             return self.matcher.user.profile.google_calendar.update_event(
                 calendarId=self.matcher.calendar_id,
                 eventId=self.event_id,

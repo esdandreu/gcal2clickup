@@ -618,8 +618,8 @@ class SyncedEvent(models.Model):
             ).execute()
 
     def delete(self, *args, with_task=False, with_event=False, **kwargs):
-        super().delete(*args, **kwargs)
         if with_task:
             self.delete_task()
         if with_event:
             self.delete_event()
+        super().delete(*args, **kwargs)

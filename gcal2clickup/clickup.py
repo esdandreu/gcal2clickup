@@ -110,7 +110,7 @@ class Clickup:
         data['due_date'] = due_date.timestamp() * 1000
         data['start_date_time'] = not all_day
         data['due_date_time'] = not all_day
-        return self.post(f'list/{list_id}/task', data=data).execute()
+        return self.post(f'list/{list_id}/task', data=data)
 
     def update_task(
         self,
@@ -124,7 +124,7 @@ class Clickup:
         data['due_date'] = due_date.timestamp() * 1000
         data['start_date_time'] = not all_day
         data['due_date_time'] = not all_day
-        return self.put(f'task/{task_id}', data=data).execute()
+        return self.put(f'task/{task_id}', data=data)
 
     def delete_task(self, task_id: str):
         return self.delete(f'task/{task_id}')

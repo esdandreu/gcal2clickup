@@ -76,7 +76,7 @@ class GoogleCalendar:
                 'start': self.parse_event_time(start_time),
                 'description': description,
                 }
-            )
+            ).execute()
 
     def update_event(
         self,
@@ -96,7 +96,7 @@ class GoogleCalendar:
                 'start': self.parse_event_time(start_time),
                 'description': description,
                 }
-            )
+            ).execute()
 
     def add_events_watch(self, calendarId, id, address, ttl=604800):
         return self.events.watch(

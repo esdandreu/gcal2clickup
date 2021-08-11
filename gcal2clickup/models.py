@@ -467,6 +467,8 @@ class Matcher(models.Model):
         kwargs = {}
         if task['description']:
             kwargs['description'] = task['description']
+        print(start_time)
+        print(end_time)
         event = self.user.profile.google_calendar.create_event(
             calendarId=self.calendar_id,
             summary=task['name'],

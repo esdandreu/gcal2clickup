@@ -553,7 +553,7 @@ class SyncedEvent(models.Model):
             field = i['field']
             if field == 'name':
                 kwargs['summary'] = i['after']
-            elif field == 'description':
+            elif field == 'content':
                 if self.sync_description is SYNC_CLICKUP_DESCRIPTION:
                     kwargs['description'] = self.task['description']
                 else:
@@ -570,7 +570,7 @@ class SyncedEvent(models.Model):
                     else:
                         kwargs['start_time'] = date
             elif field == 'tag_removed':  # Check sync tag removed
-                for tag in i.get('after', None ) or []:
+                for tag in i.get('after', None) or []:
                     if tag['name'] == SYNCED_TASK_TAG:
                         break
                 else:
@@ -624,12 +624,16 @@ class SyncedEvent(models.Model):
             )
 
     def delete_task(self) -> dict:
-        return self.matcher.clickup_user.api.delete_task(task_id=self.task_id)
+        if self.task_id:
+            return self.matcher.clickup_user.api.delete_task(
+                task_id=self.task_id
+                )
 
     def delete_event(self) -> dict:
-        return self.matcher.user.profile.google_calendar.events.delete(
-            calendarId=self.matcher.calendar_id, eventId=self.event_id
-            ).execute()
+        if self.event_id:
+            return self.matcher.user.profile.google_calendar.events.delete(
+                calendarId=self.matcher.calendar_id, eventId=self.event_id
+                ).execute()
 
     def delete(self, *args, with_task=False, with_event=False, **kwargs):
         if with_task:

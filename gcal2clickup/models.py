@@ -473,6 +473,7 @@ class Matcher(models.Model):
             start_time=start_time,
             **kwargs,
             )
+        print(event)
         return event, start_time, end_time
 
 

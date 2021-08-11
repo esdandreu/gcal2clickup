@@ -532,9 +532,9 @@ class SyncedEvent(models.Model):
         return task
 
     def update_event(self, history_items: list):
-        print(history_items)
         kwargs = {}
         for i in history_items:
+            print(i)
             field = i['field']
             if field == 'name':
                 kwargs['summary'] = i['after']
@@ -559,6 +559,8 @@ class SyncedEvent(models.Model):
                 'end_time' in kwargs and 'start_time' not in kwargs
                 and self.start == self.end
                 ):
+                if type(kwargs['end_time']) is datetime:
+                    kwargs['end_time'] = kwargs['end_time'].date()
                 kwargs['start_time'] = kwargs['end_time']
             return self.matcher.user.profile.google_calendar.update_event(
                 calendarId=self.matcher.calendar_id,
@@ -597,6 +599,8 @@ class SyncedEvent(models.Model):
 
     def delete_task(self) -> dict:
         try:
+            print(self.task_id)
+            # ? Add sleep
             return self.matcher.clickup_user.api.delete_task(task_id=self.task_id)
         except Exception as error:
             # pass exceptions about team not authorized, this means that the

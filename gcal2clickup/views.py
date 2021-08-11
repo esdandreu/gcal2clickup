@@ -12,6 +12,7 @@ logger = logging.getLogger('django')
 @csrf_exempt
 def google_calendar_endpoint(request):
     state = request.headers.get('X-Goog-Resource-State', None)
+    print(state)
     if state:
         channel_id = request.headers['X-Goog-Channel-Id']
         resource_id = request.headers['X-Goog-Resource-Id']

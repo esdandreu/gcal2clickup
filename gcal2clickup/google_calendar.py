@@ -84,21 +84,21 @@ class GoogleCalendar:
         self,
         calendarId: str,
         eventId: str,
-        summary: str = None,
         end_time: datetime = None,
         start_time: datetime = None,
-        description: str = None,
+        **body
         ):
-        return self.events.patch(
-            calendarId=calendarId,
-            eventId=eventId,
-            body={
-                'summary': summary,
-                'end': self.parse_event_time(end_time),
-                'start': self.parse_event_time(start_time),
-                'description': description,
-                }
-            ).execute()
+        if end_time:
+            body['end'] = self.parse_event_time(end_time)
+        if start_time:
+            body['start'] = self.parse_event_time(start_time)
+        print(body)
+        if body:
+            return self.events.patch(
+                calendarId=calendarId,
+                eventId=eventId,
+                body=body,
+                ).execute()
 
     def add_events_watch(self, calendarId, id, address, ttl=604800):
         return self.events.watch(

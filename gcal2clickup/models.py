@@ -452,19 +452,16 @@ class Matcher(models.Model):
         # Tasks must have due_date to be valid
         end_time = datetime.fromtimestamp(int(task['due_date']) / 1000)
         end_time = pytz.utc.localize(end_time)
-        print(end_time.time())
-        if end_time.time() == DATE_ONLY_TIME:
-            print('Heelo end')
+        if end_time.time() == DATE_ONLY_TIME: # Recognize whole day due dates
             end_time = end_time.date()
-        if not task.get('start_date', None):
+        if not task.get('start_date', None): # Start date is not mandatory
             start_time = end_time
         else:
             start_time = datetime.fromtimestamp(int(task['start_date']) / 1000)
             start_time = pytz.utc.localize(start_time)
-            if type(end_time) == date:
-                print('Heelo start')
+            if type(end_time) == date: # Start must be the same format as end
                 start_time = start_time.date()
-            elif end_time == start_time:
+            elif end_time == start_time: # Recognize whole day dates
                 end_time = end_time.date()
                 start_time = start_time.date()
         kwargs = {}

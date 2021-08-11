@@ -448,7 +448,6 @@ class Matcher(models.Model):
         match: re.Match = None,
         ) -> Tuple[dict, datetime, datetime]:
         logger.debug(f'Creating event from task {task["name"]}')
-        print(task)
         # Tasks must have due_date to be valid
         end_time = datetime.fromtimestamp(int(task['due_date']) / 1000)
         end_time = pytz.utc.localize(end_time)
@@ -467,8 +466,6 @@ class Matcher(models.Model):
         kwargs = {}
         if task['description']:
             kwargs['description'] = task['description']
-        print(start_time)
-        print(end_time)
         event = self.user.profile.google_calendar.create_event(
             calendarId=self.calendar_id,
             summary=task['name'],
@@ -476,8 +473,7 @@ class Matcher(models.Model):
             start_time=start_time,
             **kwargs,
             )
-        print(event)
-        return event, start_time, end_time
+        return event, make_aware(start_time), make_aware(end_time)
 
 
 # Constants for the sync_description field
@@ -509,6 +505,7 @@ class SyncedEvent(models.Model):
     def update_task(self, event: dict = None) -> dict:
         if event is None:
             event = self.event
+        print('Update task')
         logger.debug(f'Updating task from event {event["summary"]}')
         data = {'name': event['summary']}
         if self.sync_description is SYNC_GOOGLE_CALENDAR_DESCRIPTION:
@@ -520,6 +517,9 @@ class SyncedEvent(models.Model):
             self.sync_description = None
         (start_date, due_date, all_day) = \
             self.matcher.user.profile.google_calendar.event_bounds(event)
+        print(start_date)
+        print(due_date)
+        print(all_day)
         task = self.matcher.clickup_user.api.update_task(
             task_id=self.task_id,
             start_date=start_date,
@@ -527,11 +527,12 @@ class SyncedEvent(models.Model):
             all_day=all_day,
             **data
             )
-        self.start = start_date
-        self.end = due_date
+        self.start = make_aware(start_date)
+        self.end = make_aware(due_date)
         return task
 
     def update_event(self, history_items: list):
+        print('Update event')
         kwargs = {}
         for i in history_items:
             print(i)
@@ -555,10 +556,12 @@ class SyncedEvent(models.Model):
                     else:
                         kwargs['start_time'] = date
         if kwargs:
+            print(kwargs)
             if ( # Take care of one day tasks that only have due_date
                 'end_time' in kwargs and 'start_time' not in kwargs
                 and self.start == self.end
                 ):
+                print('Heeelo world')
                 if type(kwargs['end_time']) is datetime:
                     kwargs['end_time'] = kwargs['end_time'].date()
                 kwargs['start_time'] = kwargs['end_time']

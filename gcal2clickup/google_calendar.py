@@ -58,7 +58,7 @@ class GoogleCalendar:
         if isinstance(t, datetime):
             return {'dateTime': t.isoformat('T')}
         elif isinstance(t, date):
-            return {'date': t.strftime("yyyy-mm-dd")}
+            return {'date': t.strftime('%Y-%m-%d')}
 
     def create_event(
         self,

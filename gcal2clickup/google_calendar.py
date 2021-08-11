@@ -25,12 +25,10 @@ class GoogleCalendar:
         if 'dateTime' in event['start']:
             start = datetime.fromisoformat(event['start']['dateTime'])
             end = datetime.fromisoformat(event['end']['dateTime'])
-            all_day = False
         else:
-            start = datetime.fromisoformat(event['start']['date'])
-            end = datetime.fromisoformat(event['end']['date'])
-            all_day = True
-        return (start, end, all_day)
+            start = datetime.fromisoformat(event['start']['date']).date()
+            end = datetime.fromisoformat(event['end']['date']).date()
+        return (start, end)
 
     def list_calendars(self, **kwargs):
         nextPageToken = True

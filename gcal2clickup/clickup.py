@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Union
 
-from datetime import datetime, time
+from datetime import datetime, time, date
 
 import requests
 import logging
@@ -9,6 +9,7 @@ import json
 logger = logging.getLogger('django')
 
 DATE_ONLY_TIME = time(hour=2, minute=0, second=0)
+
 
 class Clickup:
     def __init__(self, token):
@@ -98,18 +99,30 @@ class Clickup:
             for _list in self.get(f'space/{space["id"]}/list')['lists']:
                 yield _list
 
+    @staticmethod
+    def parse_task_time(
+            start: Union[datetime, date], due: Union[datetime, date]
+        ) -> dict:
+        data = {
+            'start_date_time': type(start) == datetime,
+            'due_date_time': type(due) == datetime,
+        }
+        if not data['start_date_time']:
+            start = datetime.combine(start, DATE_ONLY_TIME)
+        if not data['due_date_time']:
+            due = datetime.combine(due, DATE_ONLY_TIME)
+        data['start_date'] = start.timestamp() * 1000
+        data['due_date'] = due.timestamp() * 1000
+        return data
+
     def create_task(
         self,
         list_id: str,
         start_date: datetime,
         due_date: datetime,
-        all_day: bool = False,
         **data,
         ):
-        data['start_date'] = start_date.timestamp() * 1000
-        data['due_date'] = due_date.timestamp() * 1000
-        data['start_date_time'] = not all_day
-        data['due_date_time'] = not all_day
+        data.update(self.parse_task_time(start_date, due_date))
         return self.post(f'list/{list_id}/task', data=data)
 
     def update_task(
@@ -117,13 +130,9 @@ class Clickup:
         task_id: str,
         start_date: datetime,
         due_date: datetime,
-        all_day: bool = False,
         **data,
         ):
-        data['start_date'] = start_date.timestamp() * 1000
-        data['due_date'] = due_date.timestamp() * 1000
-        data['start_date_time'] = not all_day
-        data['due_date_time'] = not all_day
+        data.update(self.parse_task_time(start_date, due_date))
         return self.put(f'task/{task_id}', data=data)
 
     def delete_task(self, task_id: str):

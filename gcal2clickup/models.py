@@ -45,7 +45,7 @@ class GoogleCalendarWebhook(models.Model):
         return self.calendar[1]
 
     @property
-    def calendar(self) -> Tuple[str, str]:  # (name, id)
+    def calendar(self) -> Tuple[str, str]:  # (id, name)
         name = self.user.profile.google_calendar.calendars.get(
             calendarId=self.calendar_id
             ).execute()['summary']
@@ -389,6 +389,17 @@ class Matcher(models.Model):
         return self.google_calendar_webhook.calendar_id
 
     @property
+    def calendar(self) -> Tuple[str, str]:  # (id, name)
+        return self.google_calendar_webhook.calendar
+
+    @property
+    def clickup_list(self) -> Tuple[str, str]:  # (id, name)
+        name = Clickup.repr_list(
+            self.clickup_user.api.get(f'list/{self.list_id}')
+            )
+        return (self.list_id, name)
+
+    @property
     def description_regex(self):
         return re.compile(
             self._description_regex, re.MULTILINE
@@ -431,13 +442,12 @@ class Matcher(models.Model):
             }
         if 'description' in event:
             data['markdown_description'] = markdownify(event['description'])
-        (start_date, due_date, all_day) = \
+        (start_date, due_date) = \
             self.user.profile.google_calendar.event_bounds(event)
         task = self.clickup_user.api.create_task(
             list_id=self.list_id,
             start_date=start_date,
             due_date=due_date,
-            all_day=all_day,
             **data
             )
         return (task, start_date, due_date)
@@ -519,16 +529,14 @@ class SyncedEvent(models.Model):
                     )
         else:
             self.sync_description = None
-        (start_date, due_date, all_day) = \
+        (start_date, due_date) = \
             self.matcher.user.profile.google_calendar.event_bounds(event)
         print(start_date)
         print(due_date)
-        print(all_day)
         task = self.matcher.clickup_user.api.update_task(
             task_id=self.task_id,
             start_date=start_date,
             due_date=due_date,
-            all_day=all_day,
             **data
             )
         self.start = make_aware_datetime(start_date)
@@ -553,7 +561,7 @@ class SyncedEvent(models.Model):
                 if i['after']:
                     date = datetime.fromtimestamp(int(i['after']) / 1000)
                     date = pytz.utc.localize(date)
-                    if i['data'][f'{field}_time']:
+                    if not i['data'][f'{field}_time']:
                         date = date.date()
                     if field == 'due_date':
                         kwargs['end_time'] = date
@@ -605,18 +613,7 @@ class SyncedEvent(models.Model):
             )
 
     def delete_task(self) -> dict:
-        try:
-            print(self.task_id)
-            # ? Add sleep
-            return self.matcher.clickup_user.api.delete_task(
-                task_id=self.task_id
-                )
-        except Exception as error:
-            # pass exceptions about team not authorized, this means that the
-            # task is already deleted
-            print(error)
-            if 'Team not authorized' not in str(error):
-                raise error
+        return self.matcher.clickup_user.api.delete_task(task_id=self.task_id)
 
     def delete_event(self) -> dict:
         return self.matcher.user.profile.google_calendar.events.delete(

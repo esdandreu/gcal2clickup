@@ -68,7 +68,7 @@ class GoogleCalendar:
         start_time: datetime,
         description: str = None,
         ):
-        return self.event.insert(
+        return self.events.insert(
             calendarId=calendarId,
             body={
                 'summary': summary,
@@ -87,7 +87,7 @@ class GoogleCalendar:
         start_time: datetime = None,
         description: str = None,
         ):
-        return self.event.patch(
+        return self.events.patch(
             calendarId=calendarId,
             eventId=eventId,
             body={

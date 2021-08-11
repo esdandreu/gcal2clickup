@@ -243,6 +243,10 @@ class ClickupUser(models.Model):
         return ClickupWebhook.create(
             clickup_user=self, team=team, endpoint=endpoint
             )
+        
+    def remove_sync_tag(self, task_id: str):
+        logger.debug(f'Removing sync tag from {task_id}')
+        return self.api.delete(f'task/{task_id}/tag/{SYNCED_TASK_TAG}')
 
     def check_webhooks(self) -> int:
         created = 0
@@ -264,15 +268,16 @@ class ClickupUser(models.Model):
     def check_task(self, task_id: str) -> bool:
         task = self.api.get(f'task/{task_id}')
         # Is task valid?
-        if not all([
-            SYNCED_TASK_TAG in task.get('tags', []),
-            task.get('due_date')
-            ]):
-            return False
-        match, matcher = self.matcher_set.order_by('order').match(task=task)
-        if match:
-            SyncedEvent.create(matcher, match, task=task).save()
-        return match
+        if all([SYNCED_TASK_TAG in task.get('tags', []),
+                task.get('due_date')]):
+            match, matcher = self.matcher_set.order_by('order').match(
+                task=task
+                )
+            if match:
+                SyncedEvent.create(matcher, match, task=task).save()
+                return True
+        self.remove_sync_tag(task_id)
+        return False
 
     def save(self, *args, **kwargs):
         # Add the clickup user id
@@ -378,6 +383,10 @@ class Matcher(models.Model):
         return re.compile(self._name_regex) if self._name_regex else None
 
     @property
+    def calendar_id(self):
+        return self.google_calendar_webhook.calendar_id
+
+    @property
     def description_regex(self):
         return re.compile(
             self._description_regex, re.MULTILINE
@@ -438,7 +447,24 @@ class Matcher(models.Model):
         ) -> Tuple[dict, datetime, datetime]:
         logger.debug(f'Creating event from task {task["name"]}')
         print(task)
-        raise NotImplementedError
+        end_time = datetime.fromtimestamp(int(task['due_date']) / 1000)
+        end_time = pytz.utc.localize(end_time)
+        # if end_date.
+        if not task.get('start_date', None):
+            start_time = end_time
+        else:
+            start_time = datetime.fromtimestamp(int(task['start_date']) / 1000)
+            start_time = pytz.utc.localize(start_time)
+        kwargs = {}
+        if task['description']:
+            kwargs['description'] = task['description']
+        return self.user.profile.google_calendar.create_event(
+            calendarId=self.calendar_id,
+            summary=task['name'],
+            end_time=end_time,
+            start_time=start_time,
+            **kwargs,
+            )
 
 
 # Constants for the sync_description field
@@ -459,7 +485,7 @@ class SyncedEvent(models.Model):
     @property
     def event(self):
         return self.matcher.user.profile.google_calendar.events.get(
-            calendarId=self.matcher.google_calendar_webhook.calendar_id,
+            calendarId=self.matcher.calendar_id,
             eventId=self.event_id,
             ).execute()
 
@@ -501,7 +527,7 @@ class SyncedEvent(models.Model):
                 kwargs['summary'] = i['after']
             elif field == 'description':
                 if self.sync_description is SYNC_CLICKUP_DESCRIPTION:
-                    raise NotImplementedError
+                    kwargs['description'] = self.task['description']
                 else:
                     self.sync_description = None
             elif field in ['due_date', 'start_date']:
@@ -518,7 +544,7 @@ class SyncedEvent(models.Model):
             calendarId=self.matcher.calendar_id,
             eventId=self.event_id,
             **kwargs,
-        )
+            )
 
     @classmethod
     def create(cls, matcher, match, *, event=None, task=None) -> 'SyncedEvent':

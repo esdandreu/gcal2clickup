@@ -54,9 +54,7 @@ def clickup_endpoint(request):
         # Was sync tag added?
         if event != 'taskDeleted':
             if ClickupWebhook.is_sync_tag_added(items):
-                webhook.check_task(task_id=webhook)
+                webhook.check_task(task_id=task_id)
             else:
-                # TODO remove sync tag
-                print('Should remove tag')
-                pass
+                webhook.clickup_user.remove_sync_tag(task_id=task_id)
     return HttpResponse(status=200)

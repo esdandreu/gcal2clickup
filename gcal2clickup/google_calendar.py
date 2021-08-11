@@ -53,6 +53,13 @@ class GoogleCalendar:
             for event in response['items']:
                 yield event
 
+    @staticmethod
+    def parse_event_time(t: datetime):
+        if isinstance(t, datetime):
+            return {'dateTime': t.isoformat('T')}
+        elif isinstance(t, datetime):
+            return {'date': t.strftime("yyyy-mm-dd")}
+
     def create_event(
         self,
         calendarId: str,
@@ -61,8 +68,16 @@ class GoogleCalendar:
         start_time: datetime,
         description: str = None,
         ):
-        raise NotImplementedError
-    
+        return self.event.insert(
+            calendarId=calendarId,
+            body={
+                'summary': summary,
+                'end': self.parse_event_time(end_time),
+                'start': self.parse_event_time(start_time),
+                'description': description,
+                }
+            )
+
     def update_event(
         self,
         calendarId: str,
@@ -72,12 +87,16 @@ class GoogleCalendar:
         start_time: datetime = None,
         description: str = None,
         ):
-        body = {}
-        if isinstance(end_time, datetime):
-            body['end'] = {'dateTime': end_time.isoformat('T')}
-        elif isinstance(end_time, datetime):
-            body['end'] = {'date': end_time.strftime("yyyy-mm-dd")}
-        raise NotImplementedError
+        return self.event.patch(
+            calendarId=calendarId,
+            eventId=eventId,
+            body={
+                'summary': summary,
+                'end': self.parse_event_time(end_time),
+                'start': self.parse_event_time(start_time),
+                'description': description,
+                }
+            )
 
     def add_events_watch(self, calendarId, id, address, ttl=604800):
         return self.events.watch(

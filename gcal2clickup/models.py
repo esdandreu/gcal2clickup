@@ -4,13 +4,13 @@ from django.db import models
 from django.urls import reverse
 from django.dispatch import receiver
 from django.contrib.auth.models import User
-from django.utils.timezone import make_aware
 from django.core.exceptions import ValidationError
 from django.utils.translation import ugettext_lazy as _
 from django.db.models.signals import pre_delete, post_delete
 
 from app.settings import DOMAIN, SYNCED_TASK_TAG
 from gcal2clickup.clickup import Clickup, DATE_ONLY_TIME
+from gcal2clickup.utils import make_aware_datetime
 
 from datetime import datetime, date
 from markdownify import markdownify
@@ -63,7 +63,7 @@ class GoogleCalendarWebhook(models.Model):
             id=channel_id,
             address=f'{DOMAIN}{reverse("google_calendar_endpoint")}',
             )
-        expiration = make_aware(
+        expiration = make_aware_datetime(
             datetime.fromtimestamp(int(response['expiration']) / 1000)
             )
         return cls(
@@ -115,7 +115,7 @@ class GoogleCalendarWebhook(models.Model):
                     if match:
                         SyncedEvent.create(matcher, match, event=event).save()
                         created += 1
-        self.checked_at = make_aware(datetime.utcnow())
+        self.checked_at = make_aware_datetime(datetime.utcnow())
         self.save()
         return (created, updated)
 
@@ -451,16 +451,16 @@ class Matcher(models.Model):
         # Tasks must have due_date to be valid
         end_time = datetime.fromtimestamp(int(task['due_date']) / 1000)
         end_time = pytz.utc.localize(end_time)
-        if end_time.time() == DATE_ONLY_TIME: # Recognize whole day due dates
+        if end_time.time() == DATE_ONLY_TIME:  # Recognize whole day due dates
             end_time = end_time.date()
-        if not task.get('start_date', None): # Start date is not mandatory
+        if not task.get('start_date', None):  # Start date is not mandatory
             start_time = end_time
         else:
             start_time = datetime.fromtimestamp(int(task['start_date']) / 1000)
             start_time = pytz.utc.localize(start_time)
-            if type(end_time) == date: # Start must be the same format as end
+            if type(end_time) == date:  # Start must be the same format as end
                 start_time = start_time.date()
-            elif end_time == start_time: # Recognize whole day dates
+            elif end_time == start_time:  # Recognize whole day dates
                 end_time = end_time.date()
                 start_time = start_time.date()
         kwargs = {}
@@ -473,7 +473,11 @@ class Matcher(models.Model):
             start_time=start_time,
             **kwargs,
             )
-        return event, make_aware(start_time), make_aware(end_time)
+        return (
+            event,
+            make_aware_datetime(start_time),
+            make_aware_datetime(end_time),
+            )
 
 
 # Constants for the sync_description field
@@ -527,8 +531,8 @@ class SyncedEvent(models.Model):
             all_day=all_day,
             **data
             )
-        self.start = make_aware(start_date)
-        self.end = make_aware(due_date)
+        self.start = make_aware_datetime(start_date)
+        self.end = make_aware_datetime(due_date)
         return task
 
     def update_event(self, history_items: list):
@@ -604,7 +608,9 @@ class SyncedEvent(models.Model):
         try:
             print(self.task_id)
             # ? Add sleep
-            return self.matcher.clickup_user.api.delete_task(task_id=self.task_id)
+            return self.matcher.clickup_user.api.delete_task(
+                task_id=self.task_id
+                )
         except Exception as error:
             # pass exceptions about team not authorized, this means that the
             # task is already deleted

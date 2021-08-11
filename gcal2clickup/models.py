@@ -464,6 +464,9 @@ class Matcher(models.Model):
             if type(end_time) == date:
                 print('Heelo start')
                 start_time = start_time.date()
+            elif end_time == start_time:
+                end_time = end_time.date()
+                start_time = start_time.date()
         kwargs = {}
         if task['description']:
             kwargs['description'] = task['description']

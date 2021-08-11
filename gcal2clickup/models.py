@@ -17,7 +17,6 @@ from markdownify import markdownify
 from sort_order_field import SortOrderField
 
 import logging
-import json
 import uuid
 import pytz
 import re
@@ -467,15 +466,13 @@ class Matcher(models.Model):
         kwargs = {}
         if task['description']:
             kwargs['description'] = task['description']
-        response = self.user.profile.google_calendar.create_event(
+        event = self.user.profile.google_calendar.create_event(
             calendarId=self.calendar_id,
             summary=task['name'],
             end_time=end_time,
             start_time=start_time,
             **kwargs,
             )
-        event = json.loads(response.body)
-        print(event)
         return event, start_time, end_time
 
 

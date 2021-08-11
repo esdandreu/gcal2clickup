@@ -547,6 +547,8 @@ class SyncedEvent(models.Model):
         print('Update event')
         kwargs = {}
         for i in history_items:
+            if i['after'] == i['before']:  # Avoid circular updates
+                continue
             print(i)
             field = i['field']
             if field == 'name':
@@ -567,26 +569,22 @@ class SyncedEvent(models.Model):
                         kwargs['end_time'] = date
                     else:
                         kwargs['start_time'] = date
-            elif field == 'tag_removed': # Check sync tag removed
+            elif field == 'tag_removed':  # Check sync tag removed
                 for tag in i['after']:
                     if tag['name'] == SYNCED_TASK_TAG:
                         break
                 else:
                     return self.delete(with_event=True)
         if kwargs:
-            print(kwargs)
-            if (
-                'end_time' in kwargs and kwargs['end_time']
-                == kwargs.get('start_time', kwargs['end_time'])
-                ):
+            single_all_day = (
+                'end_time' in kwargs and any([
+                    'start_time' not in kwargs,
+                    kwargs['end_time'] == kwargs['start_time'],
+                    self.start == self.end,
+                    ])
+                )
+            if single_all_day:  # Take care of one day tasks that only have due_date
                 print('It is one day only')
-                kwargs['end_time'] = kwargs['end_time'].date()
-                kwargs['start_time'] = kwargs['end_time']
-            elif ( # Take care of one day tasks that only have due_date
-                'end_time' in kwargs and 'start_time' not in kwargs
-                and self.start == self.end
-                ):
-                print('Heeelo world')
                 if type(kwargs['end_time']) is datetime:
                     kwargs['end_time'] = kwargs['end_time'].date()
                 kwargs['start_time'] = kwargs['end_time']

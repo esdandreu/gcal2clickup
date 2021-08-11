@@ -57,7 +57,7 @@ class GoogleCalendar:
     def parse_event_time(t: datetime):
         if isinstance(t, datetime):
             return {'dateTime': t.isoformat('T')}
-        elif isinstance(t, datetime):
+        elif isinstance(t, date):
             return {'date': t.strftime("yyyy-mm-dd")}
 
     def create_event(
@@ -77,7 +77,7 @@ class GoogleCalendar:
         print(body)
         return self.events.insert(
             calendarId=calendarId,
-            **body,
+            body=body,
             ).execute()
 
     def update_event(

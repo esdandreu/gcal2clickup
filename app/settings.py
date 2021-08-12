@@ -157,7 +157,7 @@ LOGGING = {
         'console': {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
-            'formatter': 'simple'
+            'formatter': 'verbose'
             },
         },
     'root': {
@@ -206,4 +206,4 @@ GOOGLE_OAUTH_TOKEN_URI = "https://accounts.google.com/o/oauth2/token"
 SYNCED_TASK_TAG = 'google_calendar'
 
 # Activate Django-Heroku.
-django_heroku.settings(locals())
+django_heroku.settings(locals(), logging=False)

@@ -12,7 +12,6 @@ logger = logging.getLogger('gcal2clikup')
 @csrf_exempt
 def google_calendar_endpoint(request):
     state = request.headers.get('X-Goog-Resource-State', None)
-    print(state)
     if state:
         channel_id = request.headers['X-Goog-Channel-Id']
         resource_id = request.headers['X-Goog-Resource-Id']
@@ -22,10 +21,10 @@ def google_calendar_endpoint(request):
                 )
         except GoogleCalendarWebhook.DoesNotExist:
             # ? Try to stop the webhook?
-            logger.warning(
-                f'Google Calendar notification not recognized: '
-                f'{request.headers}'
-                )
+            # logger.warning(
+            #     f'Google Calendar notification not recognized: '
+            #     f'{request.headers}'
+            #     )
             return HttpResponseForbidden()
         webhook.check_events()
         return HttpResponse('Done')
@@ -34,8 +33,6 @@ def google_calendar_endpoint(request):
 
 @csrf_exempt
 def clickup_endpoint(request):
-    print('CLICKUP!')
-    print(request.body)
     body = json.loads(request.body)
     try:
         webhook = ClickupWebhook.objects.get(pk=body['webhook_id'])

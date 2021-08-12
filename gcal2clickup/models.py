@@ -519,7 +519,6 @@ class SyncedEvent(models.Model):
     def update_task(self, event: dict = None) -> dict:
         if event is None:
             event = self.event
-        print('Update task')
         logger.debug(f'Updating task from event {event["summary"]}')
         data = {'name': event['summary']}
         if self.sync_description is SYNC_GOOGLE_CALENDAR_DESCRIPTION:
@@ -531,8 +530,6 @@ class SyncedEvent(models.Model):
             self.sync_description = None
         (start_date, due_date) = \
             self.matcher.user.profile.google_calendar.event_bounds(event)
-        print(start_date)
-        print(due_date)
         task = self.matcher.clickup_user.api.update_task(
             task_id=self.task_id,
             start_date=start_date,
@@ -544,12 +541,10 @@ class SyncedEvent(models.Model):
         return task
 
     def update_event(self, history_items: list):
-        print('Update event')
         kwargs = {}
         for i in history_items:
             if i['after'] == i['before']:  # Avoid circular updates
                 continue
-            print(i)
             field = i['field']
             if field == 'name':
                 kwargs['summary'] = i['after']
@@ -576,18 +571,17 @@ class SyncedEvent(models.Model):
                 else:
                     return self.delete(with_event=True)
         if kwargs:
-            single_all_day = (
+            if ( # Take care of one day tasks that only have due_date
                 'end_time' in kwargs and any([
                     'start_time' not in kwargs,
                     kwargs['end_time'] == kwargs['start_time'],
                     self.start == self.end,
                     ])
-                )
-            if single_all_day:  # Take care of one day tasks that only have due_date
-                print('It is one day only')
+                ):
                 if type(kwargs['end_time']) is datetime:
                     kwargs['end_time'] = kwargs['end_time'].date()
                 kwargs['start_time'] = kwargs['end_time']
+            logger.debug(f'Updating event from task modification {kwargs}')
             return self.matcher.user.profile.google_calendar.update_event(
                 calendarId=self.matcher.calendar_id,
                 eventId=self.event_id,

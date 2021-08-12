@@ -66,16 +66,14 @@ class GoogleCalendar:
         start_time: datetime,
         description: str = None,
         ):
-        body = {
-            'summary': summary,
-            'end': self.parse_event_time(end_time),
-            'start': self.parse_event_time(start_time),
-            'description': description,
-            }
-        print(body)
         return self.events.insert(
             calendarId=calendarId,
-            body=body,
+            body={
+                'summary': summary,
+                'end': self.parse_event_time(end_time),
+                'start': self.parse_event_time(start_time),
+                'description': description,
+                }
             ).execute()
 
     def update_event(
@@ -84,13 +82,12 @@ class GoogleCalendar:
         eventId: str,
         end_time: datetime = None,
         start_time: datetime = None,
-        **body
+        **body,
         ):
         if end_time:
             body['end'] = self.parse_event_time(end_time)
         if start_time:
             body['start'] = self.parse_event_time(start_time)
-        print(body)
         if body:
             return self.events.patch(
                 calendarId=calendarId,

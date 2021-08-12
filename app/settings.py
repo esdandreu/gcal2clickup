@@ -165,10 +165,10 @@ LOGGING = {
         'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
     },
     'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
-            },
+        # 'django': {
+        #     'handlers': ['console'],
+        #     'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+        #     },
         'gcal2clickup': {
             'handlers': ['console'],
             'level': 'DEBUG' if DEBUG else 'INFO',

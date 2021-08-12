@@ -5,7 +5,8 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from app import settings
 
-
+import logging
+logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.WARNING)
 class GoogleCalendar:
     def __init__(self, token, refresh_token):
         credentials = Credentials(
@@ -15,7 +16,9 @@ class GoogleCalendar:
             client_id=settings.GOOGLE_OAUTH_CLIENT_ID,
             client_secret=settings.GOOGLE_OAUTH_CLIENT_SECRET
             )
-        self.service = build('calendar', 'v3', credentials=credentials)
+        self.service = build(
+            'calendar', 'v3', credentials=credentials, cache_discovery=False
+            )
 
     def __getattr__(self, name: str):
         return getattr(self.service, name)()

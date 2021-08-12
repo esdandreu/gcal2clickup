@@ -503,7 +503,14 @@ class SyncedEvent(models.Model):
     event_id = models.CharField(max_length=64, null=False, blank=False)
     start = models.DateTimeField()
     end = models.DateTimeField()
-    sync_description = models.BooleanField(null=True)
+    sync_description = models.BooleanField(
+        null=True,
+        choices=[
+            (None, 'No'),
+            (SYNC_GOOGLE_CALENDAR_DESCRIPTION, 'Google Calendar -> Clickup'),
+            (SYNC_CLICKUP_DESCRIPTION, 'Clickup -> Google Calendar')
+            ]
+        )
 
     @property
     def event(self):

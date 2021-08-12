@@ -157,7 +157,7 @@ LOGGING = {
         'console': {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
-            'formatter': 'verbose'
+            'formatter': 'simple'
             },
         },
     'root': {
@@ -168,6 +168,10 @@ LOGGING = {
         'django': {
             'handlers': ['console'],
             'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            },
+        'gcal2clickup': {
+            'handlers': ['console'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
             },
         },
     }

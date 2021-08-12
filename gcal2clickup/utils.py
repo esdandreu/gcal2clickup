@@ -16,5 +16,6 @@ def make_aware_datetime(
     try:
         return make_aware(dt)
     except ValueError as e: 
-        if 'Not naive datetime' not in str(e):
-            raise e
+        if 'Not naive datetime' in str(e):
+            return dt
+        raise e

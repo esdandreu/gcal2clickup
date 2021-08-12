@@ -21,7 +21,7 @@ import uuid
 import pytz
 import re
 
-logger = logging.getLogger('django')
+logger = logging.getLogger('gcal2clikup')
 
 
 class GoogleCalendarWebhook(models.Model):

@@ -6,7 +6,7 @@ import requests
 import logging
 import json
 
-logger = logging.getLogger('django')
+logger = logging.getLogger('gcal2clikup')
 
 DATE_ONLY_TIME = time(hour=2, minute=0, second=0)
 

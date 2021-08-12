@@ -5,7 +5,7 @@ from app.settings import DOMAIN
 
 import logging
 
-logger = logging.getLogger('django')
+logger = logging.getLogger('gcal2clikup')
 
 class Command(BaseCommand):
     def handle(self, *args, **options):

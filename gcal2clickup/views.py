@@ -7,7 +7,7 @@ from gcal2clickup.models import GoogleCalendarWebhook, ClickupWebhook, SyncedEve
 import logging
 import json
 
-logger = logging.getLogger('django')
+logger = logging.getLogger('gcal2clikup')
 
 @csrf_exempt
 def google_calendar_endpoint(request):

@@ -13,4 +13,8 @@ def make_aware_datetime(
     ) -> datetime:
     if type(dt) is date:
         dt = datetime(dt.year, dt.month, dt.day, hour, minute, second)
-    return make_aware(dt)
+    try:
+        return make_aware(dt)
+    except ValueError as e: 
+        if 'Not naive datetime' not in str(e):
+            raise e

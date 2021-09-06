@@ -141,7 +141,7 @@ class Clickup:
     def task_logger(self, text: str, task_id: str):
         logger.info(text)
         data = {'comment_text': 'gcal2clickup: ' + text}
-        return self.comment_task(task_id=task_id, data=data)
+        return self.comment_task(task_id=task_id, **data)
 
     def delete_task(self, task_id: str):
         return self.delete(f'task/{task_id}')

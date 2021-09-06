@@ -282,10 +282,9 @@ class ClickupUser(models.Model):
         if not SYNCED_TASK_TAG in [t['name'] for t in task.get('tags', [])]:
             return False
         if not task.get('due_date', None):
-            self.api.comment_task(
-                task_id=task['id'],
-                comment_text=
+            self.api.task_logger(
                 'Due date must not be empty for calendar synchronization',
+                task_id=task['id'],
                 )
             self.remove_sync_tag(task_id)
             return False
@@ -293,9 +292,9 @@ class ClickupUser(models.Model):
         if match:
             SyncedEvent.create(matcher, match, task=task).save()
             return True
-        self.api.comment_task(
+        self.api.task_logger(
+            'List is not associated to any calendar',
             task_id=task['id'],
-            comment_text='List is not associated to any calendar',
             )
         self.remove_sync_tag(task_id)
         return False
@@ -545,16 +544,16 @@ class SyncedEvent(models.Model):
     def task(self):
         return self.matcher.clickup_user.api.get(f'task/{self.task_id}')
 
-    def comment_task(self, **body):
-        return self.matcher.clickup_user.api.comment_task(
-            task_id=self.task_id, **body
+    def task_logger(self, text: str):
+        return self.matcher.clickup_user.api.task_logger(
+            text=text, task_id=self.task_id
             )
 
     def update_task(self, event: dict = None) -> dict:
         if event is None:
             event = self.event
         logger.debug(f'Updating task from event {event["summary"]}')
-        self.comment_task(f'Updating task from event {event["summary"]}')
+        self.task_logger(f'Updating task from event {event["summary"]}')
         data = {'name': event['summary']}
         if self.sync_description is SYNC_GOOGLE_CALENDAR_DESCRIPTION:
             if 'description' in event:
@@ -586,7 +585,11 @@ class SyncedEvent(models.Model):
             elif field == 'content':
                 if self.sync_description is SYNC_CLICKUP_DESCRIPTION:
                     kwargs['description'] = self.task['description']
-                else:
+                elif self.sync_description is not None:
+                    self.task_logger(
+                        '''Description will not be synced into google calendar
+                        anymore'''
+                        )
                     self.sync_description = None
             elif field in ['due_date', 'start_date']:
                 # * This is UTC

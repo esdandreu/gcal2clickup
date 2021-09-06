@@ -136,9 +136,12 @@ class Clickup:
         return self.put(f'task/{task_id}', data=data)
     
     def comment_task(self, task_id: str, **data):
-        if 'comment_text' in data:
-            data['comment_text'] = 'gcal2clickup: ' + data['comment_text']
         return self.post(f'task/{task_id}/comment', data=data)
+    
+    def task_logger(self, text: str, task_id: str):
+        logger.info(text)
+        data = {'comment_text': 'gcal2clickup: ' + text}
+        return self.comment_task(task_id=task_id, data=data)
 
     def delete_task(self, task_id: str):
         return self.delete(f'task/{task_id}')

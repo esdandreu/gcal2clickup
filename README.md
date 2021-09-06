@@ -60,7 +60,7 @@ been
 ## Schedule a command
 Use Heroku Scheduler with a frequency of around 10 minutes
 ```
-python manage.py runcheck
+python manage.py runchecks
 ```
 # Thanks to
 https://github.com/matthiask/django-admin-sso

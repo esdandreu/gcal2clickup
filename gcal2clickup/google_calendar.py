@@ -6,7 +6,10 @@ from googleapiclient.discovery import build
 from app import settings
 
 import logging
+
 logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.WARNING)
+
+
 class GoogleCalendar:
     def __init__(self, token, refresh_token):
         credentials = Credentials(
@@ -102,7 +105,7 @@ class GoogleCalendar:
         return self.events.watch(
             calendarId=calendarId,
             body={
-                'id': id,
+                'id': str(id),
                 'address': address,
                 'type': 'webhook',
                 'params': {
@@ -112,4 +115,9 @@ class GoogleCalendar:
             ).execute()
 
     def stop_watch(self, id, resourceId):
-        return self.channels.stop(id=id, resourceId=resourceId).execute()
+        return self.channels.stop(
+            body={
+                'id': str(id),
+                'resourceId': resourceId
+                }
+            ).execute()

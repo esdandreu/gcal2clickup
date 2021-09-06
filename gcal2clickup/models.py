@@ -11,8 +11,9 @@ from django.db.models.signals import pre_delete, post_delete
 from app.settings import DOMAIN, SYNCED_TASK_TAG
 from gcal2clickup.clickup import Clickup, DATE_ONLY_TIME
 from gcal2clickup.utils import make_aware_datetime
+from gcal2clickup.validators import validate_is_pattern
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from markdownify import markdownify
 from sort_order_field import SortOrderField
 
@@ -26,7 +27,7 @@ logger = logging.getLogger('gcal2clikup')
 
 class GoogleCalendarWebhook(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    calendar_id = models.CharField(max_length=256, unique=True)
+    calendar_id = models.CharField(max_length=256)
     channel_id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False
         )
@@ -40,6 +41,9 @@ class GoogleCalendarWebhook(models.Model):
             updated events'''
             ),
         )
+
+    class Meta:
+        unique_together = [['user', 'calendar_id']]
 
     def __str__(self):
         return self.calendar[1]
@@ -57,10 +61,9 @@ class GoogleCalendarWebhook(models.Model):
         user: 'User',
         calendarId: str,
         ) -> 'GoogleCalendarWebhook':
-        channel_id = str(uuid.uuid4())
         response = user.profile.google_calendar.add_events_watch(
             calendarId=calendarId,
-            id=channel_id,
+            id=str(uuid.uuid4()),
             address=f'{DOMAIN}{reverse("google_calendar_endpoint")}',
             )
         expiration = make_aware_datetime(
@@ -75,8 +78,13 @@ class GoogleCalendarWebhook(models.Model):
             )
 
     def refresh(self):
-        # TODO check if it is expired and create new if needed
-        print(self.user)
+        # Create new webhook
+        new = self.create(user=self.user, calendarId=self.calendar_id)
+        new.checked_at = self.checked_at
+        new.matcher_set = self.matcher_set
+        # Stop old webhook
+        self.delete()
+        return new
 
     def check_events(self) -> Tuple[int, int]:  # (created, updated)
         # Check all the related matchers
@@ -115,17 +123,21 @@ class GoogleCalendarWebhook(models.Model):
                     if match:
                         SyncedEvent.create(matcher, match, event=event).save()
                         created += 1
-        self.checked_at = make_aware_datetime(datetime.utcnow())
+        self.checked_at = datetime.now(timezone.utc)
         self.save()
         return (created, updated)
 
 
 @receiver(pre_delete, sender=GoogleCalendarWebhook)
 def stop_google_calendar_webhook(sender, instance, **kwargs):
-    print('Deleting a GCAL webhook!!')
-    instance.user.profile.google_calendar.stop_watch(
-        id=instance.channel_id, resourceId=instance.resource_id
-        )
+    try:
+        instance.user.profile.google_calendar.stop_watch(
+            id=instance.channel_id, resourceId=instance.resource_id
+            )
+    except Exception as e:
+        # Avoid errors when the webhook is already deleted
+        if 'not found for project' not in str(e):
+            raise e
 
 
 class ClickupWebhook(models.Model):
@@ -245,7 +257,6 @@ class ClickupUser(models.Model):
             )
 
     def remove_sync_tag(self, task_id: str):
-        logger.debug(f'Removing sync tag from {task_id}')
         return self.api.delete(f'task/{task_id}/tag/{SYNCED_TASK_TAG}')
 
     def check_webhooks(self) -> int:
@@ -268,16 +279,24 @@ class ClickupUser(models.Model):
     def check_task(self, task_id: str) -> bool:
         task = self.api.get(f'task/{task_id}')
         # Is task valid?
-        if all([
-            SYNCED_TASK_TAG in [t['name'] for t in task.get('tags', [])],
-            task.get('due_date', None)
-            ]):
-            match, matcher = self.matcher_set.order_by('order').match(
-                task=task
+        if not SYNCED_TASK_TAG in [t['name'] for t in task.get('tags', [])]:
+            return False
+        if 'due_date' not in task:
+            self.api.comment_task(
+                task_id=task['id'],
+                comment_text=
+                'Due date must not be empty for calendar synchronization',
                 )
-            if match:
-                SyncedEvent.create(matcher, match, task=task).save()
-                return True
+            self.remove_sync_tag(task_id)
+            return False
+        match, matcher = self.matcher_set.order_by('order').match(task=task)
+        if match:
+            SyncedEvent.create(matcher, match, task=task).save()
+            return True
+        self.api.comment_task(
+            task_id=task['id'],
+            comment_text='List is not associated to any calendar',
+            )
         self.remove_sync_tag(task_id)
         return False
 
@@ -338,6 +357,7 @@ class Matcher(models.Model):
         max_length=1024,
         blank=True,
         null=True,
+        validators=[validate_is_pattern],
         help_text=(
             '''Regular expression that will be used with the event name
             in order to decide if a calendar event should be synced with a
@@ -348,6 +368,7 @@ class Matcher(models.Model):
         max_length=1024,
         blank=True,
         null=True,
+        validators=[validate_is_pattern],
         help_text=(
             '''Regular expression that will be used with the event description
             in order to decide if a calendar event should be synced with a
@@ -365,7 +386,7 @@ class Matcher(models.Model):
         """
         Require at least one regex
         """
-        if not (self.name_regex or self.description_regex):
+        if not (self._name_regex or self._description_regex):
             raise ValidationError(
                 "A name or description regular expression is required"
                 )
@@ -458,6 +479,7 @@ class Matcher(models.Model):
         match: re.Match = None,
         ) -> Tuple[dict, datetime, datetime]:
         logger.debug(f'Creating event from task {task["name"]}')
+        # TODO add logging to task comments
         # Tasks must have due_date to be valid
         end_time = datetime.fromtimestamp(int(task['due_date']) / 1000)
         end_time = pytz.utc.localize(end_time)
@@ -523,10 +545,16 @@ class SyncedEvent(models.Model):
     def task(self):
         return self.matcher.clickup_user.api.get(f'task/{self.task_id}')
 
+    def comment_task(self, **body):
+        return self.matcher.clickup_user.api.comment_task(
+            task_id=self.task_id, **body
+            )
+
     def update_task(self, event: dict = None) -> dict:
         if event is None:
             event = self.event
         logger.debug(f'Updating task from event {event["summary"]}')
+        self.comment_task(f'Updating task from event {event["summary"]}')
         data = {'name': event['summary']}
         if self.sync_description is SYNC_GOOGLE_CALENDAR_DESCRIPTION:
             if 'description' in event:
@@ -639,6 +667,8 @@ class SyncedEvent(models.Model):
     def delete(self, *args, with_task=False, with_event=False, **kwargs):
         if with_task:
             self.delete_task()
+        else:
+            self.matcher.clickup_user.remove_sync_tag(self.task_id)
         if with_event:
             self.delete_event()
         super().delete(*args, **kwargs)

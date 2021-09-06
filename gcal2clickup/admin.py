@@ -28,7 +28,7 @@ class UserModelAdmin(admin.ModelAdmin):
 
 @admin.register(GoogleCalendarWebhook)
 class GoogleCalendarWebhookAdmin(UserModelAdmin):
-    list_display = ['get_calendar', 'checked_at']
+    list_display = ['get_calendar', 'checked_at', 'expiration']
     actions = ['check_events', 'delete_selected']
     readonly_fields = ['checked_at']
 

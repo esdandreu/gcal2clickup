@@ -134,6 +134,11 @@ class Clickup:
         ):
         data.update(self.parse_task_time(start_date, due_date))
         return self.put(f'task/{task_id}', data=data)
+    
+    def comment_task(self, task_id: str, **data):
+        if 'comment_text' in data:
+            data['comment_text'] = 'gcal2clickup: ' + data['comment_text']
+        return self.put(f'task/{task_id}/comment', data=data)
 
     def delete_task(self, task_id: str):
         return self.delete(f'task/{task_id}')

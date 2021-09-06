@@ -57,5 +57,10 @@ https://docs.clickup.com/en/articles/1367130-getting-started-with-the-clickup-ap
 You will need to put this personal API key in your profile once the app has
 been 
 
+## Schedule a command
+Use Heroku Scheduler with a frequency of around 10 minutes
+```
+python manage.py runcheck
+```
 # Thanks to
 https://github.com/matthiask/django-admin-sso

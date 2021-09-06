@@ -673,7 +673,7 @@ class SyncedEvent(models.Model):
     def delete(self, *args, with_task=False, with_event=False, **kwargs):
         if with_task:
             self.delete_task()
-        else:
+        elif self.task_id:
             self.matcher.clickup_user.remove_sync_tag(self.task_id)
         if with_event:
             self.delete_event()

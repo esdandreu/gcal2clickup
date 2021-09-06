@@ -560,7 +560,10 @@ class SyncedEvent(models.Model):
                 data['markdown_description'] = markdownify(
                     event['description']
                     )
-        else:
+        elif self.sync_description is not None:
+            self.task_logger(
+                'Description will not be synced from google calendar anymore'
+                )
             self.sync_description = None
         (start_date, due_date) = \
             self.matcher.user.profile.google_calendar.event_bounds(event)

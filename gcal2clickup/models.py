@@ -281,7 +281,7 @@ class ClickupUser(models.Model):
         # Is task valid?
         if not SYNCED_TASK_TAG in [t['name'] for t in task.get('tags', [])]:
             return False
-        if 'due_date' not in task:
+        if not task.get('due_date', None):
             self.api.comment_task(
                 task_id=task['id'],
                 comment_text=

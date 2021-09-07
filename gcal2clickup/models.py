@@ -380,7 +380,6 @@ class Matcher(models.Model):
 
     class Meta:
         ordering = ('user__username', 'order')
-        unique_together = [['user', 'list_id']]
 
     def clean(self):
         """

@@ -523,8 +523,8 @@ class SyncedEvent(models.Model):
         max_length=64, primary_key=True, null=False, blank=False
         )
     event_id = models.CharField(max_length=64, null=False, blank=False)
-    start = models.DateTimeField()
-    end = models.DateTimeField()
+    start = models.DateTimeField(null=False, blank=False)
+    end = models.DateTimeField(null=False, blank=False)
     sync_description = models.BooleanField(
         null=True,
         choices=[
@@ -601,17 +601,19 @@ class SyncedEvent(models.Model):
                     self.sync_description = None
             # Handle date changes
             elif field in ['due_date', 'start_date']:
-                if i['after']: # Webhook sends utc miliseconds timestamp
+                # Webhook sends utc miliseconds timestamp or None
+                date = i['after']
+                if date: 
                     date = datetime.fromtimestamp(int(i['after']) / 1000)
                     date = pytz.utc.localize(date)
                     # If "due_date_time" is false, the date has no time
                     if not i['data'][f'{field}_time']:
                         date = date.date()
-                    # Save the data to update the event
-                    if field == 'due_date':
-                        data['end_time'] = date
-                    else:
-                        data['start_time'] = date
+                # Save the data to update the event
+                if field == 'due_date':
+                    data['end_time'] = date
+                else:
+                    data['start_time'] = date
             # Handle sync cancelation
             elif field == 'tag_removed':  # Check if sync tag was removed
                 for tag in i.get('after', None) or []:
@@ -619,8 +621,18 @@ class SyncedEvent(models.Model):
                         break
                 else: # Delete event if the sync is cancelled from the task
                     return self.delete(with_event=True)
+        # Perform the update
         if data:
-            # Perform the update
+            # Update the synced event
+            self.end = make_aware_datetime(data.get('end_time', self.end))
+            self.start = make_aware_datetime(data.get('start_time', self.start))
+            # Task due date was removed, stop sync
+            if not self.end:
+                self.delete(with_event=True)
+            # Task start_time was removed, set use the end time
+            if not self.start: 
+                self.start = self.end
+                data['start_time'] = self.start
             # if ( # Take care of one day tasks that only have due_date
             #     'end_time' in data and any([
             #         'start_time' not in data,
@@ -631,11 +643,15 @@ class SyncedEvent(models.Model):
             #     if type(data['end_time']) is datetime:
             #         data['end_time'] = data['end_time'].date()
             # logger.debug(f'Updating event from task modification {data}')
-            return self.matcher.user.profile.google_calendar.update_event(
-                calendarId=self.matcher.calendar_id,
-                eventId=self.event_id,
-                **data,
-                )
+            try:
+                return self.matcher.user.profile.google_calendar.update_event(
+                    calendarId=self.matcher.calendar_id,
+                    eventId=self.event_id,
+                    **data,
+                    )
+            except Exception as e:
+                logger.error(data)
+                raise e
         return False
 
     @classmethod

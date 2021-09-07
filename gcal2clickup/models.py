@@ -411,7 +411,7 @@ class Matcher(models.Model):
     @property
     def calendar(self) -> Tuple[str, str]:  # (id, name)
         return self.google_calendar_webhook.calendar
-
+    
     @property
     def clickup_list(self) -> Tuple[str, str]:  # (id, name)
         name = Clickup.repr_list(
@@ -424,6 +424,9 @@ class Matcher(models.Model):
         return re.compile(
             self._description_regex, re.MULTILINE
             ) if self._description_regex else None
+
+    def task_logger(self, text: str, task_id: str):
+        return self.clickup_user.api.task_logger(text=text, task_id=task_id)
 
     def match(self, *, event: dict = None, task: dict = None) -> re.Match:
         if event and task is None:
@@ -470,7 +473,7 @@ class Matcher(models.Model):
             due_date=due_date,
             **data
             )
-        self.api.task_logger(
+        self.task_logger(
             f'Task created from calendar event', task_id=task['id']
             )
         return (task, start_date, due_date)
@@ -507,12 +510,12 @@ class Matcher(models.Model):
                 **kwargs,
                 )
         except Exception as e:
-            self.api.task_logger(
+            self.task_logger(
                 f'Could not create calendar event from task: ' + str(e),
                 task_id=task['id'],
                 )
             raise e
-        self.api.task_logger(
+        self.task_logger(
             f'Created calendar event from task', task_id=task['id']
             )
         return (

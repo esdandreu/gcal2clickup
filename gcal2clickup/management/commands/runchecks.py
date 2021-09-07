@@ -41,7 +41,7 @@ class Command(BaseCommand):
         # Refresh Google Calendar webhooks about to expire
         refreshed = 0
         for w in GoogleCalendarWebhook.objects.filter(
-            expiration__lte=datetime.now(timezone.utc) - EXPIRATION_GAP
+            expiration__lte=datetime.now(timezone.utc) + EXPIRATION_GAP
             ):
             w = w.refresh()
             w.save()
@@ -56,7 +56,7 @@ class Command(BaseCommand):
         # Stop syncing finished events
         deleted = 0
         for e in SyncedEvent.objects.filter(
-            end__lte=datetime.now(timezone.utc) + END_GAP
+            end__lte=datetime.now(timezone.utc) - END_GAP
             ):
             e.delete()
             deleted += 1

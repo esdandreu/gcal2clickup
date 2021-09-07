@@ -109,6 +109,7 @@ class GoogleCalendarWebhook(models.Model):
             ):
             try:
                 synced_event = SyncedEvent.objects.get(event_id=event['id'])
+                # TODO Check if the filter is new
                 if event['status'] == 'cancelled':
                     synced_event.delete(with_task=True)
                     deleted += 1
@@ -532,6 +533,7 @@ class SyncedEvent(models.Model):
             (SYNC_CLICKUP_DESCRIPTION, 'Clickup -> Google Calendar')
             ]
         )
+    # TODO created_at
 
     @property
     def event(self):

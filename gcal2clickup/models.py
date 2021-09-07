@@ -580,55 +580,61 @@ class SyncedEvent(models.Model):
         return task
 
     def update_event(self, history_items: list):
-        kwargs = {}
+        data = {}
+        # Iterate accross changes
         for i in history_items:
             if i['after'] == i['before']:  # Avoid circular updates
                 continue
             field = i['field']
+            # Handle name changes
             if field == 'name':
-                kwargs['summary'] = i['after']
+                data['summary'] = i['after']
+            # Handle description changes
             elif field == 'content':
                 if self.sync_description is SYNC_CLICKUP_DESCRIPTION:
-                    kwargs['description'] = self.task['description']
+                    data['description'] = self.task['description']
                 elif self.sync_description is not None:
                     self.task_logger(
                         '''Description will not be synced into google calendar
                         anymore'''
                         )
                     self.sync_description = None
+            # Handle date changes
             elif field in ['due_date', 'start_date']:
-                # * This is UTC
-                if i['after']:
+                if i['after']: # Webhook sends utc miliseconds timestamp
                     date = datetime.fromtimestamp(int(i['after']) / 1000)
                     date = pytz.utc.localize(date)
+                    # If "due_date_time" is false, the date has no time
                     if not i['data'][f'{field}_time']:
                         date = date.date()
+                    # Save the data to update the event
                     if field == 'due_date':
-                        kwargs['end_time'] = date
+                        data['end_time'] = date
                     else:
-                        kwargs['start_time'] = date
-            elif field == 'tag_removed':  # Check sync tag removed
+                        data['start_time'] = date
+            # Handle sync cancelation
+            elif field == 'tag_removed':  # Check if sync tag was removed
                 for tag in i.get('after', None) or []:
                     if tag['name'] == SYNCED_TASK_TAG:
                         break
-                else:
+                else: # Delete event if the sync is cancelled from the task
                     return self.delete(with_event=True)
-        if kwargs:
-            if ( # Take care of one day tasks that only have due_date
-                'end_time' in kwargs and any([
-                    'start_time' not in kwargs,
-                    kwargs['end_time'] == kwargs['start_time'],
-                    self.start == self.end,
-                    ])
-                ):
-                if type(kwargs['end_time']) is datetime:
-                    kwargs['end_time'] = kwargs['end_time'].date()
-                kwargs['start_time'] = kwargs['end_time']
-            logger.debug(f'Updating event from task modification {kwargs}')
+        if data:
+            # Perform the update
+            # if ( # Take care of one day tasks that only have due_date
+            #     'end_time' in data and any([
+            #         'start_time' not in data,
+            #         data['end_time'] == data.get('start_time', None),
+            #         self.start == self.end,
+            #         ])
+            #     ):
+            #     if type(data['end_time']) is datetime:
+            #         data['end_time'] = data['end_time'].date()
+            # logger.debug(f'Updating event from task modification {data}')
             return self.matcher.user.profile.google_calendar.update_event(
                 calendarId=self.matcher.calendar_id,
                 eventId=self.event_id,
-                **kwargs,
+                **data,
                 )
         return False
 

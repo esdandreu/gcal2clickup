@@ -94,13 +94,18 @@ class GoogleCalendar:
             body['end'] = self.parse_event_time(end_time)
         if start_time:
             body['start'] = self.parse_event_time(start_time)
-        logger.info(body)
         if body:
-            return self.events.patch(
-                calendarId=calendarId,
-                eventId=eventId,
-                body=body,
-                ).execute()
+            try:
+                return self.events.patch(
+                    calendarId=calendarId,
+                    eventId=eventId,
+                    body=body,
+                    ).execute()
+            except Exception as e:
+                logger.error(calendarId)
+                logger.error(eventId)
+                logger.error(body)
+                raise e
 
     def add_events_watch(self, calendarId, id, address, ttl=604800):
         return self.events.watch(

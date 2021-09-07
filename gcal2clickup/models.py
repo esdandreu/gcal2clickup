@@ -634,22 +634,10 @@ class SyncedEvent(models.Model):
             start = data.get('start_time', self.start)
             if not start: 
                 start = self.end
-            logger.info(type(end))
             if type(end) is date:
-                logger.info('WTF')
                 start = start.date()
             data['start_time'] = start
             self.start = make_aware_datetime(start)
-            # if ( # Take care of one day tasks that only have due_date
-            #     'end_time' in data and any([
-            #         'start_time' not in data,
-            #         data['end_time'] == data.get('start_time', None),
-            #         self.start == self.end,
-            #         ])
-            #     ):
-            #     if type(data['end_time']) is datetime:
-            #         data['end_time'] = data['end_time'].date()
-            # logger.debug(f'Updating event from task modification {data}')
             try:
                 return self.matcher.user.profile.google_calendar.update_event(
                     calendarId=self.matcher.calendar_id,

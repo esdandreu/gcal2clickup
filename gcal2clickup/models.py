@@ -596,7 +596,8 @@ class SyncedEvent(models.Model):
         data = {}
         # Iterate accross changes
         for i in history_items:
-            if i['after'] == i['before']:  # Avoid circular updates
+            # Avoid circular updates
+            if i.get('after', None) == i.get('before', None):  
                 continue
             field = i['field']
             # Handle name changes

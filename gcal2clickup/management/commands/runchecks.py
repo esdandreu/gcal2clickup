@@ -51,6 +51,14 @@ class Command(BaseCommand):
         # Delete not related GoogleCalendarWebhooks
         GoogleCalendarWebhook.objects.filter(matcher=None).delete()
 
+        # Check Google Calendar webhooks
+        for obj in GoogleCalendarWebhook.all():
+            (created, updated) = obj.check_events()
+            logger.info(
+                f'''Checked {obj}: Created {created} synced events, updated
+                {updated} existing ones'''
+                )
+
         # ? set status of started synced events to "active"
 
         # Stop syncing finished events

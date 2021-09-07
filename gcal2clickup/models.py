@@ -602,18 +602,18 @@ class SyncedEvent(models.Model):
             # Handle date changes
             elif field in ['due_date', 'start_date']:
                 # Webhook sends utc miliseconds timestamp or None
-                date = i['after']
-                if date: 
-                    date = datetime.fromtimestamp(int(i['after']) / 1000)
-                    date = pytz.utc.localize(date)
+                _date = i['after']
+                if _date: 
+                    _date = datetime.fromtimestamp(int(_date) / 1000)
+                    _date = pytz.utc.localize(_date)
                     # If "due_date_time" is false, the date has no time
                     if not i['data'][f'{field}_time']:
-                        date = date.date()
+                        _date = _date.date()
                 # Save the data to update the event
                 if field == 'due_date':
-                    data['end_time'] = date
+                    data['end_time'] = _date
                 else:
-                    data['start_time'] = date
+                    data['start_time'] = _date
             # Handle sync cancelation
             elif field == 'tag_removed':  # Check if sync tag was removed
                 for tag in i.get('after', None) or []:

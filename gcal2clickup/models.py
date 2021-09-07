@@ -457,6 +457,7 @@ class Matcher(models.Model):
         ) -> Tuple[dict, datetime, datetime]:
         logger.debug(f'Creating task from event {event["summary"]}')
         data = {
+            'assignees': [self.clickup_user.id],
             'name': event['summary'],
             'tags': [SYNCED_TASK_TAG] + self.tags,
             }

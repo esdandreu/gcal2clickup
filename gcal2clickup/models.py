@@ -625,18 +625,21 @@ class SyncedEvent(models.Model):
         if data:
             # Update the synced event
             end = data.get('end_time', self.end)
-            start = data.get('start_time', self.start)
             # Task due date was removed, stop sync
             if not end:
                 self.delete(with_event=True)
             else:
+                logger.info(type(end))
                 self.end = make_aware_datetime(end)
+                logger.info(type(self.end))
             # Task start_time was removed, set use the end time
+            start = data.get('start_time', self.start)
             if not start: 
-                self.start = self.end
-                data['start_time'] = self.start
-            else:
-                self.start = make_aware_datetime(start)
+                start = self.end
+            if type(end) is date:
+                start = start.date()
+            data['start_time'] = start
+            self.start = make_aware_datetime(start)
             # if ( # Take care of one day tasks that only have due_date
             #     'end_time' in data and any([
             #         'start_time' not in data,

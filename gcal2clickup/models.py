@@ -438,7 +438,7 @@ class Matcher(models.Model):
 
     def _match_event(self, event: dict) -> re.Match:
         match = None
-        name = event['summary']
+        name = event.get('summary', '')
         if name and self.name_regex:
             match = self.name_regex.search(name)
         if not match:
@@ -455,10 +455,9 @@ class Matcher(models.Model):
         event: dict,
         match: re.Match = None,
         ) -> Tuple[dict, datetime, datetime]:
-        logger.debug(f'Creating task from event {event["summary"]}')
         data = {
             'assignees': [self.clickup_user.id],
-            'name': event['summary'],
+            'name': event.get('summary', '(No title)'),
             'tags': [SYNCED_TASK_TAG] + self.tags,
             }
         if 'description' in event:
@@ -471,6 +470,9 @@ class Matcher(models.Model):
             due_date=due_date,
             **data
             )
+        self.api.task_logger(
+            f'Task created from calendar event', task_id=task['id']
+            )
         return (task, start_date, due_date)
 
     def _create_event(
@@ -478,8 +480,6 @@ class Matcher(models.Model):
         task: dict,
         match: re.Match = None,
         ) -> Tuple[dict, datetime, datetime]:
-        logger.debug(f'Creating event from task {task["name"]}')
-        # TODO add logging to task comments
         # Tasks must have due_date to be valid
         end_time = datetime.fromtimestamp(int(task['due_date']) / 1000)
         end_time = pytz.utc.localize(end_time)
@@ -498,12 +498,22 @@ class Matcher(models.Model):
         kwargs = {}
         if task['description']:
             kwargs['description'] = task['description']
-        event = self.user.profile.google_calendar.create_event(
-            calendarId=self.calendar_id,
-            summary=task['name'],
-            end_time=end_time,
-            start_time=start_time,
-            **kwargs,
+        try:
+            event = self.user.profile.google_calendar.create_event(
+                calendarId=self.calendar_id,
+                summary=task['name'],
+                end_time=end_time,
+                start_time=start_time,
+                **kwargs,
+                )
+        except Exception as e:
+            self.api.task_logger(
+                f'Could not create calendar event from task: ' + str(e),
+                task_id=task['id'],
+                )
+            raise e
+        self.api.task_logger(
+            f'Created calendar event from task', task_id=task['id']
             )
         return (
             event,
@@ -554,9 +564,9 @@ class SyncedEvent(models.Model):
     def update_task(self, event: dict = None) -> dict:
         if event is None:
             event = self.event
-        logger.debug(f'Updating task from event {event["summary"]}')
-        self.task_logger(f'Updating task from event {event["summary"]}')
-        data = {'name': event['summary']}
+        name = event.get('summary', '(No title)')
+        self.task_logger(f'Updating task from changed event {name}')
+        data = {'name': name}
         if self.sync_description is SYNC_GOOGLE_CALENDAR_DESCRIPTION:
             if 'description' in event:
                 data['markdown_description'] = markdownify(
@@ -564,7 +574,7 @@ class SyncedEvent(models.Model):
                     )
         elif self.sync_description is not None:
             self.task_logger(
-                'Description will not be synced from google calendar anymore'
+                'Description will not be synced to google calendar anymore'
                 )
             self.sync_description = None
         (start_date, due_date) = \
@@ -595,7 +605,7 @@ class SyncedEvent(models.Model):
                     data['description'] = self.task['description']
                 elif self.sync_description is not None:
                     self.task_logger(
-                        '''Description will not be synced into google calendar
+                        '''Description will not be synced from google calendar
                         anymore'''
                         )
                     self.sync_description = None
@@ -603,7 +613,7 @@ class SyncedEvent(models.Model):
             elif field in ['due_date', 'start_date']:
                 # Webhook sends utc miliseconds timestamp or None
                 _date = i['after']
-                if _date: 
+                if _date:
                     _date = datetime.fromtimestamp(int(_date) / 1000)
                     _date = pytz.utc.localize(_date)
                     # If "due_date_time" is false, the date has no time
@@ -619,7 +629,7 @@ class SyncedEvent(models.Model):
                 for tag in i.get('after', None) or []:
                     if tag['name'] == SYNCED_TASK_TAG:
                         break
-                else: # Delete event if the sync is cancelled from the task
+                else:  # Delete event if the sync is cancelled from the task
                     return self.delete(with_event=True)
         # Perform the update
         if data:
@@ -632,7 +642,7 @@ class SyncedEvent(models.Model):
             self.end = make_aware_datetime(end)
             # Task start_time was removed, set use the end time
             start = data.get('start_time', self.start)
-            if not start: 
+            if not start:
                 start = self.end
             if type(end) is date:
                 start = start.date()

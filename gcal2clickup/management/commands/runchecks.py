@@ -52,7 +52,7 @@ class Command(BaseCommand):
         GoogleCalendarWebhook.objects.filter(matcher=None).delete()
 
         # Check Google Calendar webhooks
-        for obj in GoogleCalendarWebhook.all():
+        for obj in GoogleCalendarWebhook.objects.all():
             (created, updated) = obj.check_events()
             logger.info(
                 f'''Checked {obj}: Created {created} synced events, updated

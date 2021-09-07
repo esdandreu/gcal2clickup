@@ -628,10 +628,10 @@ class SyncedEvent(models.Model):
             # Task due date was removed, stop sync
             if not end:
                 self.delete(with_event=True)
-            else:
-                logger.info(type(end))
-                self.end = make_aware_datetime(end)
-                logger.info(type(self.end))
+                return False
+            logger.info(end)
+            self.end = make_aware_datetime(end)
+            logger.info(end)
             # Task start_time was removed, set use the end time
             start = data.get('start_time', self.start)
             if not start: 

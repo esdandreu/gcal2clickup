@@ -629,14 +629,14 @@ class SyncedEvent(models.Model):
             if not end:
                 self.delete(with_event=True)
                 return False
-            logger.info(end)
             self.end = make_aware_datetime(end)
-            logger.info(end)
             # Task start_time was removed, set use the end time
             start = data.get('start_time', self.start)
             if not start: 
                 start = self.end
+            logger.info(type(end))
             if type(end) is date:
+                logger.info('WTF')
                 start = start.date()
             data['start_time'] = start
             self.start = make_aware_datetime(start)

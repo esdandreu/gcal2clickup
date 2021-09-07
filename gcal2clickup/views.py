@@ -42,17 +42,21 @@ def clickup_endpoint(request):
     event = body['event']
     items = body.get('history_items', [])
     try:
-        synced_event = SyncedEvent.objects.get(task_id=task_id)
-        if event == 'taskDeleted':
-            synced_event.delete(with_event=True)
-        else:
-            synced_event.update_event(items)
-            synced_event.save()
-    except SyncedEvent.DoesNotExist:
-        # Was sync tag added?
-        if event == 'taskUpdated':
-            if ClickupWebhook.is_sync_tag_added(items):
-                webhook.check_task(task_id=task_id)
+        try:
+            synced_event = SyncedEvent.objects.get(task_id=task_id)
+            if event == 'taskDeleted':
+                synced_event.delete(with_event=True)
             else:
-                webhook.clickup_user.remove_sync_tag(task_id=task_id)
+                synced_event.update_event(items)
+                synced_event.save()
+        except SyncedEvent.DoesNotExist:
+            # Was sync tag added?
+            if event == 'taskUpdated':
+                if ClickupWebhook.is_sync_tag_added(items):
+                    webhook.check_task(task_id=task_id)
+                else:
+                    webhook.clickup_user.remove_sync_tag(task_id=task_id)
+    except Exception as e:
+        logger.error(body)
+        raise e
     return HttpResponse(status=200)

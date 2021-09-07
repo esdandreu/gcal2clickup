@@ -11,7 +11,7 @@ from django.db.models.signals import pre_delete, post_delete
 from app.settings import DOMAIN, SYNCED_TASK_TAG
 from gcal2clickup.clickup import Clickup, DATE_ONLY_TIME
 from gcal2clickup.utils import make_aware_datetime
-from gcal2clickup.validators import validate_is_pattern
+from gcal2clickup.validators import validate_is_clickup_token, validate_is_pattern
 
 from datetime import datetime, date, timezone
 from markdownify import markdownify
@@ -217,10 +217,10 @@ class ClickupUserManager(models.Manager):
 class ClickupUser(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     id = models.PositiveIntegerField(primary_key=True, editable=False)
-    # TODO Validate always starts with pk
     token = models.CharField(
         blank=True,
         max_length=255,
+        validators=[validate_is_clickup_token],
         verbose_name='Clickup personal API key',
         help_text='''Check <a
             href=https://docs.clickup.com/en/articles/1367130-getting-started-with-the-clickup-api#personal-api-key>

@@ -8,7 +8,7 @@ from app import settings
 import logging
 
 logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.WARNING)
-
+logger = logging.getLogger('gcal2clickup')
 
 class GoogleCalendar:
     def __init__(self, token, refresh_token):
@@ -94,6 +94,7 @@ class GoogleCalendar:
             body['end'] = self.parse_event_time(end_time)
         if start_time:
             body['start'] = self.parse_event_time(start_time)
+        logger.info(body)
         if body:
             return self.events.patch(
                 calendarId=calendarId,

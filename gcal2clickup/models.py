@@ -712,10 +712,10 @@ class SyncedEvent(models.Model):
     def delete(self, *args, with_task=False, with_event=False, **kwargs):
         if with_event:
             self.delete_event()
-            self.task_logger('Deleted synced google calendar event')                        )
+            self.task_logger('Deleted synced google calendar event')
         if with_task:
             self.delete_task()
         elif self.task_id:
-            self.task_logger('Stopped syncronization')                        )
+            self.task_logger('Stopped syncronization')
             self.matcher.clickup_user.remove_sync_tag(self.task_id)
         super().delete(*args, **kwargs)

@@ -10,6 +10,7 @@ import logging
 logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.WARNING)
 logger = logging.getLogger('gcal2clickup')
 
+
 class GoogleCalendar:
     def __init__(self, token, refresh_token):
         credentials = Credentials(
@@ -29,17 +30,29 @@ class GoogleCalendar:
     @staticmethod
     def event_bounds(event) -> Tuple[datetime, datetime, bool]:
         if 'dateTime' in event['start']:
-            start = datetime.fromisoformat(event['start']['dateTime'])
-            end = datetime.fromisoformat(event['end']['dateTime'])
+            start = datetime.fromisoformat(
+                event['start']['dateTime'].replace('Z', '+00:00')
+                )
+            end = datetime.fromisoformat(
+                event['end']['dateTime'].replace('Z', '+00:00')
+                )
         else:
-            start = datetime.fromisoformat(event['start']['date']).date()
-            end = datetime.fromisoformat(event['end']['date']).date()
+            start = datetime.fromisoformat(
+                event['start']['date'].replace('Z', '+00:00')
+                ).date()
+            end = datetime.fromisoformat(
+                event['end']['date'].replace('Z', '+00:00')
+                ).date()
         return (start, end)
 
     @staticmethod
     def is_new_event(event) -> bool:
-        created = datetime.fromisoformat(event['created'])
-        updated = datetime.fromisoformat(event['updated'])
+        created = datetime.fromisoformat(
+            event['created'].replace('Z', '+00:00')
+            )
+        updated = datetime.fromisoformat(
+            event['updated'].replace('Z', '+00:00')
+            )
         return (updated - created) < timedelta(seconds=1)
 
     def list_calendars(self, **kwargs):

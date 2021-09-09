@@ -109,6 +109,8 @@ class GoogleCalendarWebhook(models.Model):
             ):
             try:
                 synced_event = SyncedEvent.objects.get(event_id=event['id'])
+                print(event['created'])
+                print(event['updated'])
                 # Delete the task from a cancelled event
                 if event['status'] == 'cancelled':
                     # TODO if the description was changed in the task, remove
@@ -571,6 +573,7 @@ class SyncedEvent(models.Model):
         if event is None:
             event = self.event
         name = event.get('summary', '(No title)')
+        # TODO send comment with link
         self.task_logger(f'Updating task from changed event {name}')
         data = {'name': name}
         if self.sync_description is SYNC_GOOGLE_CALENDAR_DESCRIPTION:

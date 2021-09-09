@@ -433,8 +433,8 @@ class Matcher(models.Model):
     def task_logger(self, text: str, task_id: str):
         return self.clickup_user.api.task_logger(text=text, task_id=task_id)
 
-    def comment_task(self, **data):
-        return self.clickup_user.api.comment_task(task_id=self.task_id, **data)
+    def comment_task(self, task_id: str, **data):
+        return self.clickup_user.api.comment_task(task_id=task_id, **data)
 
     def match(self, *, event: dict = None, task: dict = None) -> re.Match:
         if event and task is None:
@@ -482,6 +482,7 @@ class Matcher(models.Model):
             **data
             )
         self.comment_task(
+            task_id=task['id'],
             comment=[
                 {
                     'text': 'Task created from calendar event ',
@@ -535,6 +536,7 @@ class Matcher(models.Model):
                 )
             raise e
         self.comment_task(
+            task_id=task['id'],
             comment=[
                 {
                     'text': 'Created calendar event ',

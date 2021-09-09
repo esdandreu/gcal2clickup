@@ -109,11 +109,14 @@ class GoogleCalendarWebhook(models.Model):
             ):
             try:
                 synced_event = SyncedEvent.objects.get(event_id=event['id'])
-                # TODO Check if the filter is new
+                # Delete the task from a cancelled event
                 if event['status'] == 'cancelled':
+                    # TODO if the description was changed in the task, remove
+                    # TODO sync, do not delete
                     synced_event.delete(with_task=True)
                     deleted += 1
-                else:
+                # Update the task when an event is updated, not created
+                elif event['created'] != event['updated']:
                     synced_event.update_task(event)
                     synced_event.save()
                     updated += 1
@@ -411,7 +414,7 @@ class Matcher(models.Model):
     @property
     def calendar(self) -> Tuple[str, str]:  # (id, name)
         return self.google_calendar_webhook.calendar
-    
+
     @property
     def clickup_list(self) -> Tuple[str, str]:  # (id, name)
         name = Clickup.repr_list(
@@ -597,7 +600,7 @@ class SyncedEvent(models.Model):
         # Iterate accross changes
         for i in history_items:
             # Avoid circular updates
-            if i.get('after', None) == i.get('before', None):  
+            if i.get('after', None) == i.get('before', None):
                 continue
             field = i['field']
             # Handle name changes

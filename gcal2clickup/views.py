@@ -20,15 +20,13 @@ def google_calendar_endpoint(request):
                 channel_id=channel_id, resource_id=resource_id
                 )
         except GoogleCalendarWebhook.DoesNotExist:
-            # ? Try to stop the webhook?
-            # logger.warning(
-            #     f'Google Calendar notification not recognized: '
-            #     f'{request.headers}'
-            #     )
             return HttpResponseForbidden()
+        # Ignore signals from inactive users
+        if not webhook.user.is_active:
+            return HttpResponse('Ignored', status=200)
         webhook.check_events()
-        return HttpResponse('Done')
-    return HttpResponse('Hello wolrd')
+        return HttpResponse(status=200)
+    return HttpResponseForbidden()
 
 
 @csrf_exempt
@@ -38,6 +36,9 @@ def clickup_endpoint(request):
         webhook = ClickupWebhook.objects.get(pk=body['webhook_id'])
     except ClickupWebhook.DoesNotExist:
         return HttpResponse('Unauthorized', status=401)
+    # Ignore signals from inactive users
+    if not webhook.clickup_user.user.is_active:
+        return HttpResponse('Ignored', status=200)
     task_id = body['task_id']
     event = body['event']
     items = body.get('history_items', [])

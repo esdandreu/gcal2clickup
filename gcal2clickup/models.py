@@ -549,7 +549,7 @@ class Matcher(models.Model):
                         }
                     },
                 {
-                    'text': 'from task',
+                    'text': ' from task',
                     'attributes': {}
                     },
                 ]

@@ -38,7 +38,9 @@ class GoogleCalendar:
 
     @staticmethod
     def is_new_event(event) -> bool:
-        return (event['created'] - event['updated']) < timedelta(seconds=1)
+        created = datetime.fromisoformat(event['created'])
+        updated = datetime.fromisoformat(event['updated'])
+        return (updated - created) < timedelta(seconds=1)
 
     def list_calendars(self, **kwargs):
         nextPageToken = True

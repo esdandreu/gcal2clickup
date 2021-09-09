@@ -478,8 +478,19 @@ class Matcher(models.Model):
             due_date=due_date,
             **data
             )
-        self.task_logger(
-            f'Task created from calendar event', task_id=task['id']
+        self.comment_task(
+            comment=[
+                {
+                    'text': 'Task created from calendar event ',
+                    'attributes': {}
+                    },
+                {
+                    'text': data['name'],
+                    'attributes': {
+                        'link': event['htmlLink']
+                        }
+                    },
+                ]
             )
         return (task, start_date, due_date)
 
@@ -520,8 +531,23 @@ class Matcher(models.Model):
                 task_id=task['id'],
                 )
             raise e
-        self.task_logger(
-            f'Created calendar event from task', task_id=task['id']
+        self.comment_task(
+            comment=[
+                {
+                    'text': 'Created calendar event ',
+                    'attributes': {}
+                    },
+                {
+                    'text': task['name'],
+                    'attributes': {
+                        'link': event['htmlLink']
+                        }
+                    },
+                {
+                    'text': 'from task',
+                    'attributes': {}
+                    },
+                ]
             )
         return (
             event,
@@ -551,7 +577,6 @@ class SyncedEvent(models.Model):
             (SYNC_CLICKUP_DESCRIPTION, 'Clickup -> Google Calendar')
             ]
         )
-    # TODO created_at
 
     @property
     def event(self):
@@ -569,12 +594,29 @@ class SyncedEvent(models.Model):
             text=text, task_id=self.task_id
             )
 
+    def comment_task(self, **data):
+        return self.matcher.clickup_user.api.comment_task(
+            task_id=self.task_id, **data
+            )
+
     def update_task(self, event: dict = None) -> dict:
         if event is None:
             event = self.event
         name = event.get('summary', '(No title)')
-        # TODO send comment with link
-        self.task_logger(f'Updating task from changed event {name}')
+        self.comment_task(
+            comment=[
+                {
+                    'text': 'Updating task from changed event ',
+                    'attributes': {}
+                    },
+                {
+                    'text': f'{name}',
+                    'attributes': {
+                        'link': event['htmlLink']
+                        }
+                    },
+                ]
+            )
         data = {'name': name}
         if self.sync_description is SYNC_GOOGLE_CALENDAR_DESCRIPTION:
             if 'description' in event:
@@ -697,24 +739,31 @@ class SyncedEvent(models.Model):
             sync_description=sync_description,
             )
 
-    def delete_task(self) -> dict:
-        if self.task_id:
+    def delete_task(self, task_id: str = None) -> dict:
+        if task_id is None:
+            task_id = self.task_id
+        if task_id:
             return self.matcher.clickup_user.api.delete_task(
                 task_id=self.task_id
                 )
 
-    def delete_event(self) -> dict:
-        if self.event_id:
+    def delete_event(self, event_id: str = None) -> dict:
+        if event_id is None:
+            event_id = self.event_id
+        if event_id:
             return self.matcher.user.profile.google_calendar.events.delete(
                 calendarId=self.matcher.calendar_id, eventId=self.event_id
                 ).execute()
 
     def delete(self, *args, with_task=False, with_event=False, **kwargs):
+        task_id = self.task_id
+        event_id = self.event_id
+        out = super().delete(*args, **kwargs)
         if with_event:
-            self.delete_event()
+            self.delete_event(event_id=event_id)
             self.task_logger('Deleted synced google calendar event')
         if with_task:
-            self.delete_task()
-        elif self.task_id:
-            self.matcher.clickup_user.remove_sync_tag(self.task_id)
-        return super().delete(*args, **kwargs)
+            self.delete_task(task_id=task_id)
+        elif task_id:
+            self.matcher.clickup_user.remove_sync_tag(task_id)
+        return out

@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, List
 
 from django.db import models
 from django.urls import reverse
@@ -251,7 +251,7 @@ class ClickupUser(models.Model):
         return self._username
 
     @property
-    def list_choices(self):
+    def list_choices(self) -> List[Tuple[str, str]]: # ("cu_pk,list_id", "name") 
         return [(
             str(self.pk) + ',' + l['id'],
             self.username + ': ' + self.api.repr_list(l)

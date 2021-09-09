@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 
 from gcal2clickup.forms import matcher_form_factory
 from gcal2clickup.models import (
@@ -162,10 +163,13 @@ class MatcherAdmin(UserModelAdmin):
                     calendar_id=calendar_id,
                     )
             except GoogleCalendarWebhook.DoesNotExist:
-                obj.google_calendar_webhook = GoogleCalendarWebhook.create(
-                    user=obj.user,
-                    calendarId=calendar_id,
-                    )
+                try:
+                    obj.google_calendar_webhook = GoogleCalendarWebhook.create(
+                        user=obj.user,
+                        calendarId=calendar_id,
+                        )
+                except Exception as e:
+                    raise ValidationError('Calendar not suported') from e
         clickup_user_pk, obj.list_id = form.data['clickup_list'].split(',')
         obj.clickup_user = ClickupUser.objects.get(pk=clickup_user_pk)
         super().save_model(request, obj, form, change)

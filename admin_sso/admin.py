@@ -15,8 +15,7 @@ class ProfileAdmin(admin.ModelAdmin):
     # yapf: disable
     fieldsets = [
         [None, {
-            'fields': ('user', 'clickup_pk', ),
-            # 'description': f'<img src="{readme_image_url("google_calendar_to_clickup.drawio.svg")}" alt="My image">',
+            'fields': ('user', ),
             }],
         ['Google Auth', {
             'fields': ('google_auth_token', 'google_auth_refresh_token', ),

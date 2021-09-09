@@ -1,5 +1,5 @@
 from typing import Tuple
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -35,6 +35,10 @@ class GoogleCalendar:
             start = datetime.fromisoformat(event['start']['date']).date()
             end = datetime.fromisoformat(event['end']['date']).date()
         return (start, end)
+
+    @staticmethod
+    def is_new_event(event) -> bool:
+        return (event['created'] - event['updated']) < timedelta(seconds=1)
 
     def list_calendars(self, **kwargs):
         nextPageToken = True

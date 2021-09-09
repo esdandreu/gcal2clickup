@@ -118,7 +118,7 @@ class GoogleCalendarWebhook(models.Model):
                     synced_event.delete(with_task=True)
                     deleted += 1
                 # Update the task when an event is updated, not created
-                elif event['created'] != event['updated']:
+                elif not google_calendar.is_new_event(event):
                     synced_event.update_task(event)
                     synced_event.save()
                     updated += 1
@@ -716,6 +716,5 @@ class SyncedEvent(models.Model):
         if with_task:
             self.delete_task()
         elif self.task_id:
-            self.task_logger('Stopped syncronization')
             self.matcher.clickup_user.remove_sync_tag(self.task_id)
-        super().delete(*args, **kwargs)
+        return super().delete(*args, **kwargs)

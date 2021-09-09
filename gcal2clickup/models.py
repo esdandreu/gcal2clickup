@@ -109,8 +109,8 @@ class GoogleCalendarWebhook(models.Model):
             ):
             try:
                 synced_event = SyncedEvent.objects.get(event_id=event['id'])
-                print(event['created'])
-                print(event['updated'])
+                logger.info(event['created'])
+                logger.info(event['updated'])
                 # Delete the task from a cancelled event
                 if event['status'] == 'cancelled':
                     # TODO if the description was changed in the task, remove
@@ -710,10 +710,12 @@ class SyncedEvent(models.Model):
                 ).execute()
 
     def delete(self, *args, with_task=False, with_event=False, **kwargs):
+        if with_event:
+            self.delete_event()
+            self.task_logger('Deleted synced google calendar event')                        )
         if with_task:
             self.delete_task()
         elif self.task_id:
+            self.task_logger('Stopped syncronization')                        )
             self.matcher.clickup_user.remove_sync_tag(self.task_id)
-        if with_event:
-            self.delete_event()
         super().delete(*args, **kwargs)

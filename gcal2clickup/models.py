@@ -481,13 +481,8 @@ class Matcher(models.Model):
     def _match_task(self, task: dict) -> bool:
         return task.get('list', {}).get('id', None) == self.list_id
 
-    def _create_task(self, start_date: datetime, due_date: datetime, **data):
-        return self.clickup_user.api.create_task(
-            list_id=self.list_id,
-            start_date=start_date,
-            due_date=due_date,
-            **data
-            )
+    def _create_task(self, **data):
+        return self.clickup_user.api.create_task(list_id=self.list_id, **data)
 
     def _create_task_from_event(
         self,
@@ -643,12 +638,9 @@ class SyncedEvent(models.Model):
             task_id=self.task_id, **data
             )
 
-    def update_task(self, start_date: datetime, due_date: datetime, **data):
+    def update_task(self, **data):
         return self.matcher.clickup_user.api.update_task(
-            task_id=self.task_id,
-            start_date=start_date,
-            due_date=due_date,
-            **data
+            task_id=self.task_id, **data
             )
 
     def update_task_from_event(self, event: dict = None) -> dict:
@@ -682,6 +674,7 @@ class SyncedEvent(models.Model):
             self.sync_description = None
         (start_date, due_date) = \
             self.matcher.user.profile.google_calendar.event_bounds(event)
+        # TODO check if dates have been changed before updating them
         task = self.update_task(
             start_date=start_date, due_date=due_date, **data
             )

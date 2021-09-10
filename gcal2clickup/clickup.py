@@ -101,38 +101,43 @@ class Clickup:
 
     @staticmethod
     def parse_task_time(
-            start: Union[datetime, date], due: Union[datetime, date]
+            t: Union[datetime, date], field: str
         ) -> dict:
         data = {
-            'start_date_time': type(start) == datetime,
-            'due_date_time': type(due) == datetime,
+            f'{field}_date_time': type(t) == datetime,
         }
-        if not data['start_date_time']:
-            start = datetime.combine(start, DATE_ONLY_TIME)
-        if not data['due_date_time']:
-            due = datetime.combine(due, DATE_ONLY_TIME)
-        data['start_date'] = start.timestamp() * 1000
-        data['due_date'] = due.timestamp() * 1000
+        if not data[f'{field}_date_time']:
+            t = datetime.combine(t, DATE_ONLY_TIME)
+        # Clickup won't accept dates that are not multiples of 15 min
+        round_to = 15*60
+        # In the following line // is a floor division
+        data[f'{field}_date'] = t.timestamp() // round_to * round_to * 1000
         return data
 
     def create_task(
         self,
         list_id: str,
-        start_date: datetime,
-        due_date: datetime,
+        start_date: datetime = None,
+        due_date: datetime = None,
         **data,
         ):
-        data.update(self.parse_task_time(start_date, due_date))
+        if start_date:
+            data.update(self.parse_task_time(start_date, 'start'))
+        if due_date:
+            data.update(self.parse_task_time(due_date, 'due'))
         return self.post(f'list/{list_id}/task', data=data)
 
     def update_task(
         self,
         task_id: str,
-        start_date: datetime,
-        due_date: datetime,
+        start_date: datetime = None,
+        due_date: datetime = None,
         **data,
         ):
-        data.update(self.parse_task_time(start_date, due_date))
+        if start_date:
+            data.update(self.parse_task_time(start_date, 'start'))
+        if due_date:
+            data.update(self.parse_task_time(due_date, 'due'))
         return self.put(f'task/{task_id}', data=data)
     
     def comment_task(self, task_id: str, **data):

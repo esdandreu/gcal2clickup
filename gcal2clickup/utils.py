@@ -2,7 +2,7 @@ from typing import Union, Optional
 
 from django.utils.timezone import make_aware
 
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 
 def make_aware_datetime(

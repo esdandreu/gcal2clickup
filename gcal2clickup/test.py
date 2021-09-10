@@ -131,6 +131,7 @@ class TestBase(unittest.TestCase):
         self.event = self.synced_event.event
         self.assertEqual(self.event['summary'], 'TEST clickup2gcal')
         self.assertEqual(self.event['description'], 'My test description\n')
+        # TODO assert event time
         # Change task
         self.synced_event.update_task(
             name='CHANGED TEST clickup2gcal', description='My new description'

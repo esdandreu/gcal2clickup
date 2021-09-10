@@ -1,4 +1,4 @@
-from typing import Tuple, List
+from typing import Set, Tuple, List, Optional, Any
 
 from django.db import models
 from django.urls import reverse
@@ -49,10 +49,13 @@ class GoogleCalendarWebhook(models.Model):
         return self.calendar[1]
 
     @property
+    def google_calendar(self):
+        return self.user.profile.google_calendar
+
+    @property
     def calendar(self) -> Tuple[str, str]:  # (id, name)
-        name = self.user.profile.google_calendar.calendars.get(
-            calendarId=self.calendar_id
-            ).execute()['summary']
+        name = self.google_calendar.calendars.get(calendarId=self.calendar_id
+                                                  ).execute()['summary']
         return (self.calendar_id, name)
 
     @classmethod
@@ -86,10 +89,15 @@ class GoogleCalendarWebhook(models.Model):
         self.delete()
         return new
 
-    def check_events(self) -> Tuple[int, int]:  # (created, updated)
-        # Check all the related matchers
-        google_calendar = self.user.profile.google_calendar
-        matchers = self.matcher_set.order_by('order')
+    def check_events(
+        self,
+        matchers: Optional[models.QuerySet['Matcher']] = None,
+        ) -> Tuple[int, int]:  # (created, updated)
+        created = 0
+        updated = 0
+        if matchers is None:
+            matchers = self.matcher_set.order_by('order')
+        # Build the query arguments
         if not self.checked_at:
             kwargs = {
                 'timeMin': datetime.utcnow().isoformat('T') + 'Z',
@@ -101,36 +109,46 @@ class GoogleCalendarWebhook(models.Model):
                 'orderBy': 'updated',
                 }
         kwargs['showDeleted'] = True
-        created = 0
-        updated = 0
-        deleted = 0
-        for event in google_calendar.list_events(
+        # Query events and check them individually, storing some statistics
+        for event in self.google_calendar.list_events(
             calendarId=self.calendar_id, **kwargs
             ):
-            try:
-                synced_event = SyncedEvent.objects.get(event_id=event['id'])
-                logger.info(event['created'])
-                logger.info(event['updated'])
-                # Delete the task from a cancelled event
-                if event['status'] == 'cancelled':
-                    # TODO if the description was changed in the task, remove
-                    # TODO sync, do not delete
-                    synced_event.delete(with_task=True)
-                    deleted += 1
-                # Update the task when an event is updated, not created
-                elif not google_calendar.is_new_event(event):
-                    synced_event.update_task(event)
-                    synced_event.save()
-                    updated += 1
-            except SyncedEvent.DoesNotExist:
-                # Create a new synced event on confirmed events that match
-                if event['status'] != 'cancelled':
-                    match, matcher = matchers.match(event=event)
-                    if match:
-                        SyncedEvent.create(matcher, match, event=event).save()
-                        created += 1
+            _created, _updated = self.check_event(event, matchers)
+            created += _created
+            updated += _updated
+        # Update the check time
         self.checked_at = datetime.now(timezone.utc)
         self.save()
+        return (created, updated)
+
+    def check_event(
+        self,
+        event: dict,
+        matchers: Optional[models.QuerySet['Matcher']] = None,
+        ) -> Tuple[int, int]:  # (created, updated)
+        created = 0
+        updated = 0
+        if matchers is None:
+            matchers = self.matcher_set.order_by('order')
+        try:
+            synced_event = SyncedEvent.objects.get(event_id=event['id'])
+            # Delete the task from a cancelled event
+            if event['status'] == 'cancelled':
+                # TODO if the description was changed in the task, remove
+                # TODO sync, do not delete
+                synced_event.delete(with_task=True)
+            # Update the task when an event is updated, not created
+            elif not self.google_calendar.is_new_event(event):
+                synced_event.update_task_from_event(event)
+                synced_event.save()
+                updated += 1
+        except SyncedEvent.DoesNotExist:
+            # Create a new synced event on confirmed events that match
+            if event['status'] != 'cancelled':
+                match, matcher = matchers.match(event=event)
+                if match:
+                    SyncedEvent.create(matcher, match, event=event).save()
+                    created += 1
         return (created, updated)
 
 
@@ -251,7 +269,9 @@ class ClickupUser(models.Model):
         return self._username
 
     @property
-    def list_choices(self) -> List[Tuple[str, str]]: # ("cu_pk,list_id", "name") 
+    def list_choices(
+            self
+        ) -> List[Tuple[str, str]]:  # ("cu_pk,list_id", "name")
         return [(
             str(self.pk) + ',' + l['id'],
             self.username + ': ' + self.api.repr_list(l)
@@ -461,7 +481,15 @@ class Matcher(models.Model):
     def _match_task(self, task: dict) -> bool:
         return task.get('list', {}).get('id', None) == self.list_id
 
-    def _create_task(
+    def _create_task(self, start_date: datetime, due_date: datetime, **data):
+        return self.clickup_user.api.create_task(
+            list_id=self.list_id,
+            start_date=start_date,
+            due_date=due_date,
+            **data
+            )
+
+    def _create_task_from_event(
         self,
         event: dict,
         match: re.Match = None,
@@ -475,11 +503,8 @@ class Matcher(models.Model):
             data['markdown_description'] = markdownify(event['description'])
         (start_date, due_date) = \
             self.user.profile.google_calendar.event_bounds(event)
-        task = self.clickup_user.api.create_task(
-            list_id=self.list_id,
-            start_date=start_date,
-            due_date=due_date,
-            **data
+        task = self._create_task(
+            start_date=start_date, due_date=due_date, **data
             )
         self.comment_task(
             task_id=task['id'],
@@ -498,7 +523,18 @@ class Matcher(models.Model):
             )
         return (task, start_date, due_date)
 
-    def _create_event(
+    def _delete_task(self, task_id: str):
+        return self.clickup_user.api.delete_task(task_id=task_id)
+
+    def _create_event(self, start_time: datetime, end_time: datetime, **data):
+        return self.user.profile.google_calendar.create_event(
+            calendarId=self.calendar_id,
+            end_time=end_time,
+            start_time=start_time,
+            **data,
+            )
+
+    def _create_event_from_task(
         self,
         task: dict,
         match: re.Match = None,
@@ -518,16 +554,14 @@ class Matcher(models.Model):
             elif end_time == start_time:  # Recognize whole day dates
                 end_time = end_time.date()
                 start_time = start_time.date()
-        kwargs = {}
+        data = {'summary': task['name']}
         if task['description']:
-            kwargs['description'] = task['description']
+            data['description'] = task['description']
         try:
-            event = self.user.profile.google_calendar.create_event(
-                calendarId=self.calendar_id,
-                summary=task['name'],
+            event = self._create_event(
                 end_time=end_time,
                 start_time=start_time,
-                **kwargs,
+                **data,
                 )
         except Exception as e:
             self.task_logger(
@@ -558,6 +592,11 @@ class Matcher(models.Model):
             event,
             make_aware_datetime(start_time),
             make_aware_datetime(end_time),
+            )
+
+    def _delete_event(self, event_id: str):
+        return self.user.profile.google_calendar.delete_event(
+            calendarId=self.calendar_id, eventId=event_id
             )
 
 
@@ -604,7 +643,15 @@ class SyncedEvent(models.Model):
             task_id=self.task_id, **data
             )
 
-    def update_task(self, event: dict = None) -> dict:
+    def update_task(self, start_date: datetime, due_date: datetime, **data):
+        return self.matcher.clickup_user.api.update_task(
+            task_id=self.task_id,
+            start_date=start_date,
+            due_date=due_date,
+            **data
+            )
+
+    def update_task_from_event(self, event: dict = None) -> dict:
         if event is None:
             event = self.event
         name = event.get('summary', '(No title)')
@@ -635,17 +682,21 @@ class SyncedEvent(models.Model):
             self.sync_description = None
         (start_date, due_date) = \
             self.matcher.user.profile.google_calendar.event_bounds(event)
-        task = self.matcher.clickup_user.api.update_task(
-            task_id=self.task_id,
-            start_date=start_date,
-            due_date=due_date,
-            **data
+        task = self.update_task(
+            start_date=start_date, due_date=due_date, **data
             )
         self.start = make_aware_datetime(start_date)
         self.end = make_aware_datetime(due_date)
         return task
 
-    def update_event(self, history_items: list):
+    def update_event(self, **data):
+        return self.matcher.user.profile.google_calendar.update_event(
+            calendarId=self.matcher.calendar_id,
+            eventId=self.event_id,
+            **data,
+            )
+
+    def update_event_from_task_history(self, history_items: list):
         data = {}
         # Iterate accross changes
         for i in history_items:
@@ -706,11 +757,7 @@ class SyncedEvent(models.Model):
             data['start_time'] = start
             self.start = make_aware_datetime(start)
             try:
-                return self.matcher.user.profile.google_calendar.update_event(
-                    calendarId=self.matcher.calendar_id,
-                    eventId=self.event_id,
-                    **data,
-                    )
+                return self.update_event(**data)
             except Exception as e:
                 logger.error(data)
                 raise e
@@ -719,12 +766,12 @@ class SyncedEvent(models.Model):
     @classmethod
     def create(cls, matcher, match, *, event=None, task=None) -> 'SyncedEvent':
         if event and task is None:
-            (task, start, end) = matcher._create_task(event, match)
+            (task, start, end) = matcher._create_task_from_event(event, match)
             task_id = task['id']
             event_id = event['id']
             sync_description = SYNC_GOOGLE_CALENDAR_DESCRIPTION
         elif task and event is None:
-            (event, start, end) = matcher._create_event(task, match)
+            (event, start, end) = matcher._create_event_from_task(task, match)
             event_id = event['id']
             task_id = task['id']
             sync_description = SYNC_CLICKUP_DESCRIPTION
@@ -748,17 +795,13 @@ class SyncedEvent(models.Model):
         if task_id is None:
             task_id = self.task_id
         if task_id:
-            return self.matcher.clickup_user.api.delete_task(
-                task_id=self.task_id
-                )
+            return self.matcher._delete_task(task_id=task_id)
 
     def delete_event(self, event_id: str = None) -> dict:
         if event_id is None:
             event_id = self.event_id
         if event_id:
-            return self.matcher.user.profile.google_calendar.events.delete(
-                calendarId=self.matcher.calendar_id, eventId=self.event_id
-                ).execute()
+            return self.matcher._delete_event(event_id=event_id)
 
     def delete(self, *args, with_task=False, with_event=False, **kwargs):
         task_id = self.task_id

@@ -126,6 +126,12 @@ class GoogleCalendar:
                 logger.error(body)
                 raise e
 
+    def delete_event(self, calendarId: str, eventId: str):
+        return self.events.delete(
+            calendarId=calendarId,
+            eventId=eventId,
+            ).execute()
+
     def add_events_watch(self, calendarId, id, address, ttl=604800):
         return self.events.watch(
             calendarId=calendarId,

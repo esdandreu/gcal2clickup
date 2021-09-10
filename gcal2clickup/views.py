@@ -38,6 +38,7 @@ def clickup_endpoint(request):
         return HttpResponse('Unauthorized', status=401)
     # Ignore signals from inactive users
     if not webhook.clickup_user.user.is_active:
+        logger.info(body)
         return HttpResponse('Ignored', status=200)
     task_id = body['task_id']
     event = body['event']
@@ -48,7 +49,7 @@ def clickup_endpoint(request):
             if event == 'taskDeleted':
                 synced_event.delete(with_event=True)
             else:
-                synced_event.update_event(items)
+                synced_event.update_event_from_task_history(items)
                 synced_event.save()
         except SyncedEvent.DoesNotExist:
             # Was sync tag added?

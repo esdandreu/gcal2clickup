@@ -809,7 +809,10 @@ class SyncedEvent(models.Model):
         out = super().delete(*args, **kwargs)
         if with_event:
             self.delete_event(event_id=event_id)
-            self.task_logger('Deleted synced google calendar event')
+            try:
+                self.task_logger('Deleted synced google calendar event')
+            except Exception as e:
+                logger.error('Failed logging to task', exc_info=e)
         if with_task:
             self.delete_task(task_id=task_id)
         elif task_id:

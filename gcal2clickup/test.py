@@ -29,6 +29,7 @@ class TestBase(unittest.TestCase):
             raise unittest.SkipTest('No User is usable to test with')
         # Set the user as inactive
         cls.user.is_active = False
+        cls.user.save()
         # Create a matcher with the personal calendar and the first list
         calendar_id = cls.user.username
         try:
@@ -62,6 +63,7 @@ class TestBase(unittest.TestCase):
         cls.matcher.delete()
         # Get the user and set it back as active
         cls.user.is_active = True
+        cls.user.save()
 
     # def setUp(self):
     # print('setUp')
@@ -69,6 +71,7 @@ class TestBase(unittest.TestCase):
     def tearDown(self):
         # Deactivate the webhooks
         self.user.is_active = False
+        self.user.save()
         # Delete event in google calendar
         if self.event:
             self.matcher._delete_event(self.event['id'])
@@ -101,7 +104,7 @@ class TestBase(unittest.TestCase):
         # Change event
         self.synced_event.update_event(
             summary='CHANGED TEST gcal2clickup',
-            description='My new test description'
+            description='My new description'
             )
         self.event = self.synced_event.event
         # Update task from event
@@ -109,12 +112,11 @@ class TestBase(unittest.TestCase):
         # Assert task information
         self.task = self.synced_event.task
         self.assertEqual(self.task['name'], 'CHANGED TEST gcal2clickup')
-        self.assertEqual(self.task['description'], 'My new test description\n')
+        self.assertEqual(self.task['description'], 'My new description\n')
 
     def test_clickup_to_google_calendar(self):
         # Create task
         self.task = self.matcher._create_task(
-            start_date=self.start,
             due_date=self.end,
             assignees=[self.matcher.clickup_user.id],
             name='TEST clickup2gcal',
@@ -131,7 +133,52 @@ class TestBase(unittest.TestCase):
         self.assertEqual(self.event['description'], 'My test description\n')
         # Change task
         self.synced_event.update_task(
-            name='CHANGED TEST clickup2gcal',
-            description='My new test description'
+            name='CHANGED TEST clickup2gcal', description='My new description'
             )
         self.task = self.synced_event.task
+        history_items = [
+            {
+                'field': 'content',
+                'data': {},
+                'before': '{"ops":[{"insert":"My test description\\n"}]}',
+                'after': '{"ops":[{"insert":"My new description\\n"}]}'
+                },
+            # {
+            #     'field': 'due_date',
+            #     'data': {
+            #         'due_date_time': True,
+            #         'old_due_date_time': True
+            #         },
+            #     'before': '1631375377000',
+            #     'after': '1631375377000'
+            #     },
+            # {
+            #     'field': 'start_date',
+            #     'data': {
+            #         'start_date_time': True,
+            #         'old_start_date_time': True
+            #         },
+            #     'before': '1631371777000',
+            #     'after': '1631371777000'
+            #     },
+            {
+                'field': 'name',
+                'data': {},
+                'before': 'TEST clickup2gcal',
+                'after': 'CHANGED TEST clickup2gcal'
+                }
+            ]
+        # Update event from task
+        self.synced_event.update_event_from_task_history(history_items)
+        # Assert event information
+        self.event = self.synced_event.event
+        self.assertEqual(self.event['summary'], 'CHANGED TEST clickup2gcal')
+        self.assertEqual(self.event['description'], 'My new description')
+
+        # Test moving an event from a specified time to all day
+
+        # Test moving an event from all day to an specified time
+
+        # Test moving a task from a specified time to all day
+
+        # Test moving a task event from all day to an specified time

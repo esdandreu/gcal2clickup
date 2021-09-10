@@ -23,6 +23,7 @@ def google_calendar_endpoint(request):
             return HttpResponseForbidden()
         # Ignore signals from inactive users
         if not webhook.user.is_active:
+            logger.info('Ignoring google calendar change')
             return HttpResponse('Ignored', status=200)
         webhook.check_events()
         return HttpResponse(status=200)

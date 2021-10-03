@@ -109,9 +109,10 @@ class ClickupWebhookAdmin(admin.ModelAdmin):
 @admin.register(Matcher)
 class MatcherAdmin(UserModelAdmin):
     list_display = [
-        '_name_regex', '_description_regex', 'get_calendar', 'get_list',
+        '_name_regex', 'order', '_description_regex', 'get_calendar', 'get_list',
         '_tags', 'get_checked_at'
         ]
+    list_editable = ['order']
     actions = ['check_events', 'delete_selected']
 
     @admin.action(description='Check updated events')
@@ -152,8 +153,8 @@ class MatcherAdmin(UserModelAdmin):
             )
 
     def save_model(self, request, obj, form, change):
-        calendar_id = form.data['calendar_id']
-        if (
+        calendar_id = form.data.get('calendar_id', None)
+        if calendar_id and (
             getattr(self, 'google_calendar_webhook', None) is None
             or obj.google_calendar_webhook.calendar_id != calendar_id
             ):
@@ -170,8 +171,9 @@ class MatcherAdmin(UserModelAdmin):
                         )
                 except Exception as e:
                     raise ValidationError('Calendar not suported') from e
-        clickup_user_pk, obj.list_id = form.data['clickup_list'].split(',')
-        obj.clickup_user = ClickupUser.objects.get(pk=clickup_user_pk)
+        if 'clickup_list' in form.data:
+            clickup_user_pk, obj.list_id = form.data['clickup_list'].split(',')
+            obj.clickup_user = ClickupUser.objects.get(pk=clickup_user_pk)
         super().save_model(request, obj, form, change)
 
 
